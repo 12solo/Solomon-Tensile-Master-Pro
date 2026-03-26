@@ -31,35 +31,89 @@ if st.sidebar.button("🗑️ Clear All Data"):
     st.session_state.group_a = {}; st.session_state.group_b = {}
     st.rerun()
 
-# --- 4. Bulk Data Acquisition ---
+# --- 4. Bulk Data Acquisition & High-Precision Processing ---
 st.subheader("1. Bulk Upload & High-Precision Processing")
 uploaded_files = st.file_uploader("Upload Samples (CSV/Excel)", type=['csv', 'xlsx'], accept_multiple_files=True)
 
 if uploaded_files:
-    target_group = st.radio("Assign these files to:", [st.sidebar.text_input("Group A Label", "Control"), st.sidebar.text_input("Group B Label", "Experimental")], horizontal=True)
+    # Get group names from sidebar
+    g_a_name = st.sidebar.text_input("Group A Label", "Control", key="ga_input")
+    g_b_name = st.sidebar.text_input("Group B Label", "Experimental", key="gb_input")
+    
+    target_group = st.radio("Assign these files to:", [g_a_name, g_b_name], horizontal=True)
     
     if st.button(f"Process {len(uploaded_files)} Samples"):
         for uploaded_file in uploaded_files:
             sample_label = uploaded_file.name.split('.')[0]
-            df_raw = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
             
-            # 1. Raw Data Extraction
-            f_raw = df_raw.iloc[:, 0].values # Force (N)
-            d_raw = df_raw.iloc[:, 1].values # Deformation (mm)
+            # Load Data
+            try:
+                df_raw = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
+                f_raw = df_raw.iloc[:, 0].values # Force (N)
+                d_raw = df_raw.iloc[:, 1].values # Deformation (mm)
+            except Exception as e:
+                st.error(f"Error reading {uploaded_file.name}: {e}")
+                continue
 
-            # 2. Toe-Region / Slack Normalization
-            # Find point where load significantly starts (0.1N threshold)
+            # 1. Toe-Region / Slack Normalization (Zeroing)
             if normalize:
-                start_idx = np.where(f_raw > 0.1)[0][0] if any(f_raw > 0.1) else 0
-                f_proc = f_raw[start_idx:] - f_raw[start_idx]
-                d_proc = d_raw[start_idx:] - d_raw[start_idx]
+                # Find first point where force > 0.1N to ignore grip slack
+                start_mask = f_raw > 0.1
+                if any(start_mask):
+                    idx = np.where(start_mask)[0][0]
+                    f_proc = f_raw[idx:] - f_raw[idx]
+                    d_proc = d_raw[idx:] - d_raw[idx]
+                else:
+                    f_proc, d_proc = f_raw, d_raw
             else:
                 f_proc, d_proc = f_raw, d_raw
 
+            # 2. Stress-Strain Conversion
             stress = f_proc / area
-            strain = (d_proc / gauge_length) * 100 # In %
+            strain = (d_proc / gauge_length) * 100 # Strain in %
+
+            # 3. ROLLING REGRESSION MODULUS (E)
+            # Scans for the maximum slope in the initial region (0% to search_limit%)
+            mask_e = (strain > 0) & (strain <= search_limit)
+            stress_e = stress[mask_e]
+            strain_e = strain[mask_e] / 100 # Convert % back to mm/mm for MPa
             
-            # 3. HIGH PRECISION MODULUS (E)
+            E_final = 0
+            if len(stress_e) > 10:
+                # Use a sliding window of 20% of the elastic data to find the truest slope
+                window = max(5, int(len(stress_e) * 0.2))
+                slopes = []
+                for i in range(len(stress_e) - window):
+                    slope, _, _, _, _ = stats.linregress(strain_e[i:i+window], stress_e[i:i+window])
+                    slopes.append(slope)
+                E_final = max(slopes) if slopes else 0
+
+            # 4. YIELD & WORK DONE
+            y_stress = stress[strain <= 25.0].max() if any(strain <= 25.0) else stress.max()
+            try:
+                work_j = np.trapezoid(f_proc, d_proc) / 1000.0
+            except:
+                work_j = np.trapz(f_proc, d_proc) / 1000.0
+
+            # 5. Store Metrics in Session State
+            metrics = {
+                "E (MPa)": round(E_final, 2),
+                "Yield (MPa)": round(y_stress, 2),
+                "Break (MPa)": round(stress[-1], 2),
+                "Elongation (%)": round(strain[-1], 2),
+                "Work (J)": round(work_j, 4),
+                "Raw_Strain": strain,
+                "Raw_Stress": stress
+            }
+
+            if target_group == g_a_name:
+                st.session_state.group_a[sample_label] = metrics
+            else:
+                st.session_state.group_b[sample_label] = metrics
+            
+        st.success(f"Processed {len(uploaded_files)} samples successfully!")
+
+                        # 3. HIGH PRECISION MODULUS (E)
             # We search for the maximum slope (stiffness) within the elastic boundary
             mask_elastic = strain <= search_limit
             stress_e = stress[mask_elastic]
