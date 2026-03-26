@@ -108,8 +108,73 @@ if st.session_state.samples:
     # --- 6. Export Branded Research Report ---
     st.subheader("3. Export Formal Documentation")
     
-    # Summary Table for Excel
+    # 1. Create the Summary DataFrame
     df_master = pd.DataFrame({
         'Strain (%)': common_strain,
         'Mean Stress (MPa)': master_mean,
-        'Std Dev (MPa)': master_
+        'Std Dev (MPa)': master_std
+    })
+
+    # 2. Capture the Matplotlib Plot
+    img_buffer = io.BytesIO()
+    fig.savefig(img_buffer, format='png', dpi=120)
+    img_buffer.seek(0)
+
+    # 3. Capture Logo from GitHub (Optional check)
+    logo_data = io.BytesIO()
+    try:
+        r = requests.get(logo_url, timeout=5)
+        logo_data.write(r.content)
+        logo_data.seek(0)
+        has_logo = True
+    except:
+        has_logo = False
+
+    # 4. Generate the Excel File
+    output = io.BytesIO()
+    try:
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            # Sheet 1: Master Curve Data
+            df_master.to_excel(writer, index=False, sheet_name="Master Curve Data")
+            
+            workbook = writer.book
+            worksheet = workbook.add_worksheet("Validation & Summary")
+            writer.sheets["Validation & Summary"] = worksheet
+            
+            # Formatting
+            title_fmt = workbook.add_format({'bold': True, 'font_size': 14, 'font_color': '#1f77b4'})
+            label_fmt = workbook.add_format({'bold': True})
+            
+            # Header Info
+            worksheet.write('A1', 'RESEARCH VALIDATION REPORT', title_fmt)
+            if has_logo:
+                worksheet.insert_image('G1', 'logo.png', {'image_data': logo_data, 'x_scale': 0.3, 'y_scale': 0.3})
+            
+            worksheet.write('A3', 'Project Name:', label_fmt)
+            worksheet.write('B3', project_name)
+            worksheet.write('A4', 'Verified By:', label_fmt)
+            worksheet.write('B4', verified_by)
+            worksheet.write('A5', 'QC Status:', label_fmt)
+            worksheet.write('B5', qc_status)
+            worksheet.write('A6', 'Timestamp:', label_fmt)
+            worksheet.write('B6', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            
+            # Insert Comparative Graph
+            worksheet.insert_image('A8', 'master_plot.png', {'image_data': img_buffer, 'x_scale': 0.7, 'y_scale': 0.7})
+            
+            # Add individual sheets for each sample in the batch
+            for name, data in st.session_state.samples.items():
+                sample_df = pd.DataFrame({'Strain (%)': data['strain'], 'Stress (MPa)': data['stress']})
+                # Excel sheet names must be <= 31 characters
+                clean_name = "".join([c for c in name if c.isalnum() or c in (' ', '_')])[:30]
+                sample_df.to_excel(writer, sheet_name=clean_name, index=False)
+                
+        # 5. The Download Button
+        st.download_button(
+            label=f"📥 Download Research Report ({len(st.session_state.samples)} Samples)", 
+            data=output.getvalue(), 
+            file_name=f"Research_Report_{project_name.replace(' ', '_')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    except Exception as e:
+        st.error(f"Excel Export Error: {e}")
