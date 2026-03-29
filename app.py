@@ -43,9 +43,22 @@ u_scale = scale_map[unit_input]
 
 apply_zeroing = st.sidebar.checkbox("Apply Toe-Compensation (Shift to 0,0)", value=True)
 
-# --- NEW: Visual Customization ---
+# --- Plot Customization ---
 st.sidebar.header("🎨 Plot Customization")
 line_thickness = st.sidebar.slider("Line Thickness (Journal Plot)", 0.5, 5.0, 2.5, 0.5)
+legend_pos = st.sidebar.selectbox("Legend Position", 
+                                ["lower right", "upper right", "upper left", "lower left", "best", "outside"], 
+                                index=0)
+
+auto_scale = st.sidebar.checkbox("Enable Auto-Scale", value=True)
+if not auto_scale:
+    custom_x_max = st.sidebar.number_input("Manual X Max (Strain %)", value=100.0)
+    custom_y_max = st.sidebar.number_input("Manual Y Max (Stress MPa)", value=50.0)
+
+# --- Helper: Name Cleaner ---
+def clean_label(name):
+    """Removes common file extensions from sample names."""
+    return re.sub(r'\.(txt|csv|xlsx|xls)$', '', name, flags=re.IGNORECASE)
 
 # --- 4. Digitizer Helper Class ---
 class DigitizedFile:
@@ -156,6 +169,9 @@ if uploaded_files:
         strain_raw = strain_all[:peak_idx + 1]
 
         with st.expander(f"Adjust & Preview: {file.name}", expanded=False):
+            # --- NEW: Sample Renaming Tool ---
+            custom_name = st.text_input("Scientific Display Name", value=clean_label(file.name), key=f"name_{file.name}")
+            
             ctrl_col, prev_col = st.columns([1, 2])
             current_range = ctrl_col.slider("Modulus Fit Range (%)", 0.0, 20.0, (0.2, 1.0), key=f"range_{file.name}")
             mask_e = (strain_raw >= current_range[0]) & (strain_raw <= current_range[1])
@@ -170,7 +186,7 @@ if uploaded_files:
                 else:
                     strain_plot, stress_plot = strain_raw, stress_raw
 
-                plot_data_storage[file.name] = (strain_plot, stress_plot)
+                plot_data_storage[custom_name] = (strain_plot, stress_plot)
 
                 fig_mini = go.Figure()
                 fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color='teal')))
@@ -191,7 +207,7 @@ if uploaded_files:
                 toughness = (work_j / (area * gauge_length * 1e-9)) / 1e6
 
                 all_results.append({
-                    "Sample": file.name, 
+                    "Sample": custom_name, 
                     "Modulus (E) [MPa]": round(E_slope * 100, 1),
                     "Yield Stress [MPa]": round(y_stress, 2),
                     "Yield Strain [%]": round(y_strain, 2),
@@ -213,25 +229,34 @@ if uploaded_files:
         if view_mode == "Interactive (Cursor Inspection)":
             fig_main = go.Figure()
             for name, data in plot_data_storage.items():
-                fig_main.add_trace(go.Scatter(x=data[0], y=data[1], name=name, mode='lines', hovertemplate='Strain: %{x:.2f}%<br>Stress: %{y:.2f} MPa'))
+                fig_main.add_trace(go.Scatter(
+                    x=data[0], y=data[1], 
+                    name=name, 
+                    mode='lines', 
+                    hovertemplate='Strain: %{x:.2f}%<br>Stress: %{y:.2f} MPa'
+                ))
             
+            x_limit = res_df["Strain @ Peak [%]"].max() * 1.05 if auto_scale else custom_x_max
+            y_limit = res_df["Stress @ Peak [MPa]"].max() * 1.1 if auto_scale else custom_y_max
+
             fig_main.update_layout(
                 template="simple_white",
-                xaxis=dict(title="Strain (%)", range=[0, None], mirror=True, ticks='inside', showline=True, linecolor='black', linewidth=2),
-                yaxis=dict(title="Stress (MPa)", range=[0, None], mirror=True, ticks='inside', showline=True, linecolor='black', linewidth=2),
+                xaxis=dict(title="Strain (%)", range=[0, x_limit], mirror=True, ticks='inside', showline=True, linecolor='black', linewidth=2),
+                yaxis=dict(title="Stress (MPa)", range=[0, y_limit], mirror=True, ticks='inside', showline=True, linecolor='black', linewidth=2),
                 hovermode="x unified", height=600
             )
             st.plotly_chart(fig_main, use_container_width=True)
 
         else:
-            # --- JOURNAL QUALITY STATIC PLOT ---
             plt.rcParams.update({
                 "font.family": "serif", 
                 "font.serif": ["Times New Roman"], 
                 "font.size": 12, 
                 "axes.linewidth": 1.5,
                 "xtick.direction": "in",
-                "ytick.direction": "in"
+                "ytick.direction": "in",
+                "xtick.major.size": 6,
+                "ytick.major.size": 6
             })
             
             fig, ax = plt.subplots(figsize=(8, 6))
@@ -239,16 +264,25 @@ if uploaded_files:
             
             for i, (name, data) in enumerate(plot_data_storage.items()):
                 color = journal_colors[i % len(journal_colors)]
-                # Applied sidebar line_thickness slider here
                 ax.plot(data[0], data[1], label=name, color=color, linestyle='-', lw=line_thickness)
             
-            ax.set_xlim(left=0); ax.set_ylim(bottom=0)
+            if auto_scale:
+                ax.set_xlim(left=0, right=res_df["Strain @ Peak [%]"].max() * 1.05)
+                ax.set_ylim(bottom=0, top=res_df["Stress @ Peak [MPa]"].max() * 1.1)
+            else:
+                ax.set_xlim(left=0, right=custom_x_max)
+                ax.set_ylim(bottom=0, top=custom_y_max)
+
             ax.set_xlabel('Strain (%)', fontweight='bold', labelpad=10)
             ax.set_ylabel('Stress (MPa)', fontweight='bold', labelpad=10)
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            ax.grid(True, linestyle='--', alpha=0.3)
-            ax.legend(frameon=False, loc='lower right', fontsize=10)
+            ax.grid(False)
+            ax.spines['top'].set_visible(True)
+            ax.spines['right'].set_visible(True)
+            
+            if legend_pos == "outside":
+                ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', frameon=False, fontsize=10)
+            else:
+                ax.legend(loc=legend_pos, frameon=False, fontsize=10)
             
             st.pyplot(fig)
             
@@ -265,16 +299,13 @@ if uploaded_files:
         if control_sample:
             baseline = res_df[res_df["Sample"] == control_sample].iloc[0]
             comp_df = res_df.copy()
-            
             comp_df["Modulus Δ (%)"] = ((comp_df["Modulus (E) [MPa]"] - baseline["Modulus (E) [MPa]"]) / baseline["Modulus (E) [MPa]"]) * 100
             comp_df["Strength Δ (%)"] = ((comp_df["Stress @ Peak [MPa]"] - baseline["Stress @ Peak [MPa]"]) / baseline["Stress @ Peak [MPa]"]) * 100
             comp_df["Toughness Δ (%)"] = ((comp_df["Toughness [MJ/m³]"] - baseline["Toughness [MJ/m³]"]) / baseline["Toughness [MJ/m³]"]) * 100
             
             st.dataframe(
                 comp_df[["Sample", "Modulus (E) [MPa]", "Modulus Δ (%)", "Stress @ Peak [MPa]", "Strength Δ (%)", "Toughness [MJ/m³]", "Toughness Δ (%)"]].style.format({
-                    "Modulus Δ (%)": "{:+.1f}%",
-                    "Strength Δ (%)": "{:+.1f}%",
-                    "Toughness Δ (%)": "{:+.1f}%"
+                    "Modulus Δ (%)": "{:+.1f}%", "Strength Δ (%)": "{:+.1f}%", "Toughness Δ (%)": "{:+.1f}%"
                 }).background_gradient(subset=["Modulus Δ (%)", "Strength Δ (%)", "Toughness Δ (%)"], cmap="RdYlGn"),
                 hide_index=True, use_container_width=True
             )
