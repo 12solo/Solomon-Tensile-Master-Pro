@@ -48,7 +48,6 @@ def smart_load(file):
     try:
         ext = file.name.split('.')[-1].lower()
         if ext == 'xlsx':
-            # Uses openpyxl to read modern Excel files
             return pd.read_excel(file, engine='openpyxl')
         
         raw_bytes = file.getvalue()
@@ -94,7 +93,6 @@ if uploaded_files:
         df = smart_load(file)
         if df is None or df.empty: continue
         
-        # 1. Engineering Conversion (Pre-process for the mini-plot)
         cols = df.columns.tolist()
         f_col_key = f"f_{file.name}"
         d_col_key = f"d_{file.name}"
@@ -107,22 +105,15 @@ if uploaded_files:
         stress_raw = df_clean[f_col].values / area
         strain_raw = (disp_mm / gauge_length) * 100
 
-        # --- Dynamic Per-Sample UI with Integrated Preview ---
         with st.expander(f"Adjust & Preview: {file.name}", expanded=False):
             ctrl_col, prev_col = st.columns([1, 2])
-            
-            # Controls
-            current_range = ctrl_col.slider(
-                "Modulus Fit Range (%)", 0.0, 10.0, (0.2, 1.0), key=f"range_{file.name}"
-            )
+            current_range = ctrl_col.slider("Modulus Fit Range (%)", 0.0, 10.0, (0.2, 1.0), key=f"range_{file.name}")
             sample_configs[file.name] = current_range
             
-            # Calculations for current sample
             mask_e = (strain_raw >= current_range[0]) & (strain_raw <= current_range[1])
             if np.sum(mask_e) >= 3:
                 E_slope, intercept_y = np.polyfit(strain_raw[mask_e], stress_raw[mask_e], 1)
                 
-                # Toe-Compensation for plotting
                 if apply_zeroing:
                     shift = -intercept_y / E_slope
                     strain_plot = strain_raw - shift
@@ -134,22 +125,15 @@ if uploaded_files:
                     strain_plot, stress_plot = strain_raw, stress_raw
                     f_final, d_final = df_clean[f_col].values, disp_mm
 
-                # Mini Preview Plot
                 fig_mini = go.Figure()
                 fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color='teal')))
-                
                 fit_x = np.linspace(0, current_range[1] * 2, 20)
                 fit_y = E_slope * fit_x + (0 if apply_zeroing else intercept_y)
                 fig_mini.add_trace(go.Scatter(x=fit_x, y=fit_y, name="Fit", line=dict(dash='dot', color='red')))
                 
-                fig_mini.update_layout(
-                    height=250, margin=dict(l=0, r=0, t=0, b=0),
-                    xaxis_title="Strain (%)", yaxis_title="Stress (MPa)",
-                    xaxis_range=[0, current_range[1] * 2.5], template="plotly_white", showlegend=False
-                )
+                fig_mini.update_layout(height=250, margin=dict(l=0, r=0, t=0, b=0), template="plotly_white", showlegend=False)
                 prev_col.plotly_chart(fig_mini, use_container_width=True)
 
-                # Final Metrics for results table
                 offset_line = E_slope * (strain_plot - 0.2)
                 idx_yield = np.where((stress_plot - offset_line) < 0)[0]
                 y_stress = stress_plot[idx_yield[0]] if len(idx_yield) > 0 else np.nan
@@ -168,32 +152,9 @@ if uploaded_files:
                     "Work Done [J]": round(work_j, 4),
                     "Toughness [MJ/m³]": round((work_j / (area * gauge_length * 1e-9)) / 1e6, 3)
                 })
-                
                 fig_main.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name=file.name))
             else:
-                ctrl_col.error("Insufficient points in range.")
+                ctrl_col.error("Insufficient points.")
 
-# --- Fixed Excel Export & Download Block ---
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            # 1. Individual Sample Results Sheet
-            res_df.to_excel(writer, sheet_name='Individual_Samples', index=False)
-            
-            # 2. Batch Summary Statistics Sheet
-            stats_df = res_df.drop(columns='Sample').agg(['mean', 'std', 'count']).T
-            stats_df.columns = ['Mean', 'Std. Deviation', 'n']
-            stats_df.to_excel(writer, sheet_name='Batch_Statistics')
-            
-            # Formatting
-            workbook = writer.book
-            for sheet_name in ['Individual_Samples', 'Batch_Statistics']:
-                worksheet = writer.sheets[sheet_name]
-                worksheet.set_column('A:Z', 20)
-
-        # Ensure this button is aligned exactly with the "with" block above it
-        st.download_button(
-            label=f"📥 Download Official Report (n={len(res_df)})", 
-            data=output.getvalue(), 
-            file_name=f"{project_name}_Final_Report.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+    # --- 6. Results & Export (CRITICAL FIX FOR NameError) ---
+    if all_results:
