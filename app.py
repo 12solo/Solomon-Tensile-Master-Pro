@@ -147,9 +147,19 @@ if uploaded_files:
         
         # Handle unit logic based on source
       # --- 8. Core Processing Engine ---
+# --- 8. Core Processing Engine ---
 if uploaded_files:
     all_results = []
     fig_main = go.Figure()
+
+    st.subheader("🛠️ Sample Configuration & Modulus Validation")
+    with st.expander("⚡ Bulk Update (Apply to All Samples)"):
+        b1, b2 = st.columns([3, 1])
+        bulk_range = b1.slider("Select Global Modulus Range (%)", 0.0, 10.0, (0.2, 1.0), key="bulk_slider")
+        if b2.button("Apply to All"):
+            for file in uploaded_files:
+                st.session_state[f"range_{file.name}"] = bulk_range
+            st.rerun()
 
     for file in uploaded_files:
         df = smart_load(file)
@@ -157,10 +167,15 @@ if uploaded_files:
             continue
         
         cols = df.columns.tolist()
+        def_f = cols[1] if "Digitized Stress" in cols else cols[0]
+        def_d = cols[0] if "Digitized Strain" in cols else cols[1]
+
+        f_col = st.sidebar.selectbox(f"Force/Stress ({file.name})", cols, index=cols.index(def_f), key=f"f_{file.name}")
+        d_col = st.sidebar.selectbox(f"Disp/Strain ({file.name})", cols, index=cols.index(def_d), key=f"d_{file.name}")
         
-        # --- FIX STARTS HERE (Line 149 area) ---
-        if "Digitized" in file.name:
-            # These must be indented exactly 8 spaces (if the 'for' is at 4)
+        df_clean = df[[f_col, d_col]].apply(pd.to_numeric, errors='coerce').dropna()
+        
+        if "Digitized" in str(file.name):
             stress_raw = df_clean[f_col].values
             strain_raw = df_clean[d_col].values
             disp_mm = (strain_raw / 100) * gauge_length
@@ -168,7 +183,7 @@ if uploaded_files:
             disp_mm = df_clean[d_col].values * u_scale
             stress_raw = df_clean[f_col].values / area
             strain_raw = (disp_mm / gauge_length) * 100
-        # --- FIX ENDS HERE ---
+
         with st.expander(f"Adjust & Preview: {file.name}", expanded=False):
             ctrl_col, prev_col = st.columns([1, 2])
             current_range = ctrl_col.slider("Modulus Fit Range (%)", 0.0, 10.0, (0.2, 1.0), key=f"range_{file.name}")
@@ -181,7 +196,8 @@ if uploaded_files:
                     shift = -intercept_y / E_slope
                     strain_plot = strain_raw - shift
                     mask_pos = strain_plot >= 0
-                    strain_plot, stress_plot = strain_plot[mask_pos], stress_raw[mask_pos]
+                    strain_plot = strain_plot[mask_pos]
+                    stress_plot = stress_raw[mask_pos]
                     f_final = (stress_plot * area)
                     d_final = (strain_plot / 100) * gauge_length
                 else:
@@ -197,18 +213,18 @@ if uploaded_files:
                 fig_mini.update_layout(height=250, margin=dict(l=0, r=0, t=0, b=0), template="plotly_white", showlegend=False)
                 prev_col.plotly_chart(fig_mini, use_container_width=True)
 
-                # Yield & Stats
+                # Calculations
                 offset_line = E_slope * (strain_plot - 0.2)
                 idx_yield = np.where((stress_plot - offset_line) < 0)[0]
                 y_stress = stress_plot[idx_yield[0]] if len(idx_yield) > 0 else np.nan
                 y_strain = strain_plot[idx_yield[0]] if len(idx_yield) > 0 else np.nan
                 
-           # Replace the failing np.trapz line with this:
-try:
-    work_j = np.trapezoid(f_final, d_final / 1000.0)
-except AttributeError:
-    work_j = np.trapz(f_final, d_final / 1000.0)
+                try:
+                    work_j = np.trapezoid(f_final, d_final / 1000.0)
+                except AttributeError:
+                    work_j = np.trapz(f_final, d_final / 1000.0)
                 
+                # --- FIXED INDENTATION HERE ---
                 all_results.append({
                     "Sample": file.name,
                     "Modulus (E) [MPa]": round(E_slope * 100, 1),
@@ -222,7 +238,6 @@ except AttributeError:
                 fig_main.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name=file.name))
             else:
                 ctrl_col.error("Insufficient points.")
-
     # --- 9. Final Reports ---
     if all_results:
         res_df = pd.DataFrame(all_results)
