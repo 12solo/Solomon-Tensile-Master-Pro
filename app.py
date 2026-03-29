@@ -197,4 +197,3 @@ if uploaded_files:
             file_name=f"{project_name}_Final_Report.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-        )
