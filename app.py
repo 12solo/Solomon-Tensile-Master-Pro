@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import io
 import re
@@ -44,7 +45,6 @@ apply_zeroing = st.sidebar.checkbox("Apply Toe-Compensation (Shift to 0,0)", val
 
 # --- 4. Digitizer Helper Class ---
 class DigitizedFile:
-    """Mocks a Streamlit UploadedFile object for the main engine."""
     def __init__(self, name, df):
         self.name = name
         self.df = df
@@ -54,35 +54,27 @@ class DigitizedFile:
 def image_digitizer_ui():
     st.subheader("🖼️ Plot Digitizer Mode")
     digitizer_file = st.file_uploader("Upload Plot Image", type=["png", "jpg", "jpeg"], key="digitizer_upload")
-    
     if digitizer_file:
         img = Image.open(digitizer_file)
         c1, c2 = st.columns([2, 1])
-        
         with c2:
             st.info("Instructions:\n1. Origin (0,0)\n2. Max X Point\n3. Max Y Point\n4. Trace Curve")
             real_max_x = st.number_input("Real Max Strain (%)", value=10.0)
             real_max_y = st.number_input("Real Max Stress (MPa)", value=100.0)
-            
         with c1:
             canvas_result = st_canvas(
-                fill_color="rgba(255, 165, 0, 0.3)",
-                stroke_width=2, stroke_color="#ff0000",
-                background_image=img,
-                height=img.height * (800 / img.width), width=800,
+                fill_color="rgba(255, 165, 0, 0.3)", stroke_width=2, stroke_color="#ff0000",
+                background_image=img, height=img.height * (800 / img.width), width=800,
                 drawing_mode="point", key="canvas_digitizer",
             )
-
         if canvas_result.json_data is not None:
             df_points = pd.json_normalize(canvas_result.json_data["objects"])
             if len(df_points) >= 4:
                 coords = df_points[['left', 'top']].values
                 origin, mX, mY = coords[0], coords[1], coords[2]
                 curve = coords[3:]
-                
                 sX = real_max_x / (mX[0] - origin[0])
                 sY = real_max_y / (origin[1] - mY[1])
-                
                 data = [{"Digitized Strain": (p[0]-origin[0])*sX, "Digitized Stress": (origin[1]-p[1])*sY} for p in curve]
                 return DigitizedFile(f"Digitized_{digitizer_file.name}", pd.DataFrame(data))
     return None
@@ -111,7 +103,6 @@ def smart_load(file):
 
 # --- 7. Main Engine Input Selector ---
 input_mode = st.radio("Select Input Source", ["Standard Files (CSV/XLSX)", "Image Digitizer"], horizontal=True)
-
 if input_mode == "Image Digitizer":
     d_file = image_digitizer_ui()
     uploaded_files = [d_file] if d_file else []
@@ -121,7 +112,7 @@ else:
 # --- 8. Core Processing Engine ---
 if uploaded_files:
     all_results = []
-    fig_main = go.Figure()
+    plot_data_storage = {} # To store data for Matplotlib journal plot
 
     st.subheader("🛠️ Sample Configuration & Modulus Validation")
     with st.expander("⚡ Bulk Update (Apply to All Samples)"):
@@ -138,7 +129,6 @@ if uploaded_files:
         if df is None or df.empty: continue
         
         cols = df.columns.tolist()
-        
         inst_stress_col = next((c for c in cols if "sforzo" in c.lower()), None)
         def_f = inst_stress_col if inst_stress_col else (cols[1] if "Digitized Stress" in cols else cols[0])
         def_d = cols[0] if "Digitized Strain" in cols else cols[1]
@@ -154,39 +144,33 @@ if uploaded_files:
             disp_all = (strain_all / 100) * gauge_length
         else:
             disp_all = df_clean[d_col].values * u_scale
-            if inst_stress_col and f_col == inst_stress_col:
-                stress_all = df_clean[f_col].values
-            else:
-                stress_all = df_clean[f_col].values / area
+            stress_all = df_clean[f_col].values if (inst_stress_col and f_col == inst_stress_col) else (df_clean[f_col].values / area)
             strain_all = (disp_all / gauge_length) * 100
 
-        # --- LIMIT DATA AT MAXIMUM STRESS (PEAK) ---
-        peak_idx = np.argmax(stress_all) + 1  # Include the peak point itself
+        # LIMIT DATA AT MAXIMUM STRESS (PEAK)
+        peak_idx = np.argmax(stress_all) + 1
         stress_raw = stress_all[:peak_idx]
         strain_raw = strain_all[:peak_idx]
-        disp_mm = disp_all[:peak_idx]
 
         with st.expander(f"Adjust & Preview: {file.name}", expanded=False):
             ctrl_col, prev_col = st.columns([1, 2])
             current_range = ctrl_col.slider("Modulus Fit Range (%)", 0.0, 20.0, (0.2, 1.0), key=f"range_{file.name}")
-            
             mask_e = (strain_raw >= current_range[0]) & (strain_raw <= current_range[1])
+            
             if np.sum(mask_e) >= 3:
                 E_slope, intercept_y = np.polyfit(strain_raw[mask_e], stress_raw[mask_e], 1)
-                
                 if apply_zeroing:
                     shift = -intercept_y / E_slope
                     strain_plot = strain_raw - shift
                     mask_pos = strain_plot >= 0
-                    strain_plot = strain_plot[mask_pos]
-                    stress_plot = stress_raw[mask_pos]
-                    f_final = (stress_plot * area)
-                    d_final = (strain_plot / 100) * gauge_length
+                    strain_plot, stress_plot = strain_plot[mask_pos], stress_raw[mask_pos]
                 else:
                     strain_plot, stress_plot = strain_raw, stress_raw
-                    f_final, d_final = (stress_raw * area), disp_mm
 
-                # Mini Plot
+                # Store for main plot
+                plot_data_storage[file.name] = (strain_plot, stress_plot)
+
+                # Interactive Preview (Plotly)
                 fig_mini = go.Figure()
                 fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color='teal')))
                 fit_x = np.linspace(0, current_range[1] * 2, 20)
@@ -195,38 +179,59 @@ if uploaded_files:
                 fig_mini.update_layout(height=250, margin=dict(l=0, r=0, t=0, b=0), template="plotly_white", showlegend=False)
                 prev_col.plotly_chart(fig_mini, use_container_width=True)
 
-                # Calculations
+                # Summary Metrics
                 offset_line = E_slope * (strain_plot - 0.2)
                 idx_yield = np.where((stress_plot - offset_line) < 0)[0]
                 y_stress = stress_plot[idx_yield[0]] if len(idx_yield) > 0 else np.nan
                 y_strain = strain_plot[idx_yield[0]] if len(idx_yield) > 0 else np.nan
-                
-                try:
-                    work_j = np.trapezoid(f_final, d_final / 1000.0)
-                except AttributeError:
-                    work_j = np.trapz(f_final, d_final / 1000.0)
+                try: work_j = np.trapezoid(stress_plot * area, (strain_plot/100 * gauge_length) / 1000.0)
+                except: work_j = np.trapz(stress_plot * area, (strain_plot/100 * gauge_length) / 1000.0)
                 
                 all_results.append({
-                    "Sample": file.name,
-                    "Modulus (E) [MPa]": round(E_slope * 100, 1),
-                    "Yield Stress [MPa]": round(y_stress, 2),
-                    "Yield Strain [%]": round(y_strain, 2),
-                    "Stress @ Peak [MPa]": round(stress_plot[-1], 2),
-                    "Strain @ Peak [%]": round(strain_plot[-1], 2),
-                    "Work Done [J]": round(work_j, 4),
-                    "Toughness [MJ/m³]": round((work_j / (area * gauge_length * 1e-9)) / 1e6, 3)
+                    "Sample": file.name, "Modulus (E) [MPa]": round(E_slope * 100, 1),
+                    "Yield Stress [MPa]": round(y_stress, 2), "Yield Strain [%]": round(y_strain, 2),
+                    "Stress @ Peak [MPa]": round(stress_plot[-1], 2), "Strain @ Peak [%]": round(strain_plot[-1], 2),
+                    "Work Done [J]": round(work_j, 4), "Toughness [MJ/m³]": round((work_j / (area * gauge_length * 1e-9)) / 1e6, 3)
                 })
-                fig_main.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name=file.name))
             else:
                 ctrl_col.error("Insufficient points.")
 
-    # --- 9. Final Reports ---
+    # --- 9. Final Reports & Journal Quality Plotting ---
     if all_results:
         res_df = pd.DataFrame(all_results)
         st.divider()
-        st.subheader("Global Stress-Strain Comparison")
-        fig_main.update_layout(xaxis_title="Strain (%)", yaxis_title="Stress (MPa)", template="plotly_white")
-        st.plotly_chart(fig_main, use_container_width=True)
+        st.subheader("🏛️ Journal Publication Graphics")
+
+        # MATPLOTLIB GLOBAL SETTINGS FOR JOURNALS
+        plt.rcParams.update({
+            "font.family": "serif", "font.serif": ["Times New Roman"], "font.size": 12,
+            "axes.linewidth": 1.5, "xtick.major.width": 1.5, "ytick.major.width": 1.5, "figure.dpi": 300
+        })
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+        colors = plt.cm.viridis(np.linspace(0, 0.8, len(plot_data_storage)))
+
+        for i, (name, data) in enumerate(plot_data_storage.items()):
+            ax.plot(data[0], data[1], label=name, color=colors[i], lw=2)
+
+        ax.set_xlabel('Strain (%)', fontweight='bold', labelpad=10)
+        ax.set_ylabel('Stress (MPa)', fontweight='bold', labelpad=10)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.grid(True, linestyle=':', alpha=0.6)
+        ax.legend(frameon=False, fontsize=10, loc='lower right')
+        
+        st.pyplot(fig)
+
+        # Download Button for High-Res TIFF
+        img_buffer = io.BytesIO()
+        fig.savefig(img_buffer, format="tiff", dpi=300, bbox_inches='tight')
+        st.download_button(
+            label="🖼️ Download High-Res TIFF (300 DPI)",
+            data=img_buffer.getvalue(),
+            file_name=f"{project_name}_Publication_Plot.tiff",
+            mime="image/tiff"
+        )
 
         st.subheader(f"📊 Batch Summary Statistics (n={len(res_df)})")
         stats_df = res_df.drop(columns='Sample').agg(['mean', 'std', 'count']).T
@@ -239,8 +244,6 @@ if uploaded_files:
             res_df.to_excel(writer, sheet_name='Samples', index=False)
             stats_df.to_excel(writer, sheet_name='Stats')
         
-        st.download_button(
-            label="📥 Download Official Report", data=output.getvalue(),
-            file_name=f"{project_name}_Report.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        st.download_button(label="📥 Download Excel Report", data=output.getvalue(), 
+                           file_name=f"{project_name}_Report.xlsx", 
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
