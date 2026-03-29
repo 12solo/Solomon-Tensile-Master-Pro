@@ -146,16 +146,29 @@ if uploaded_files:
         df_clean = df[[f_col, d_col]].apply(pd.to_numeric, errors='coerce').dropna()
         
         # Handle unit logic based on source
-       if "Digitized" in file.name:
-    stress_raw = df_clean[f_col].values
-    strain_raw = df_clean[d_col].values
-    # Ensure disp_mm is calculated from the strain to keep lengths identical
-    disp_mm = (strain_raw / 100) * gauge_length
+      # --- 8. Core Processing Engine ---
+if uploaded_files:
+    all_results = []
+    fig_main = go.Figure()
+
+    for file in uploaded_files:
+        df = smart_load(file)
+        if df is None or df.empty: 
+            continue
+        
+        cols = df.columns.tolist()
+        
+        # --- FIX STARTS HERE (Line 149 area) ---
+        if "Digitized" in file.name:
+            # These must be indented exactly 8 spaces (if the 'for' is at 4)
+            stress_raw = df_clean[f_col].values
+            strain_raw = df_clean[d_col].values
+            disp_mm = (strain_raw / 100) * gauge_length
         else:
             disp_mm = df_clean[d_col].values * u_scale
             stress_raw = df_clean[f_col].values / area
             strain_raw = (disp_mm / gauge_length) * 100
-
+        # --- FIX ENDS HERE ---
         with st.expander(f"Adjust & Preview: {file.name}", expanded=False):
             ctrl_col, prev_col = st.columns([1, 2])
             current_range = ctrl_col.slider("Modulus Fit Range (%)", 0.0, 10.0, (0.2, 1.0), key=f"range_{file.name}")
