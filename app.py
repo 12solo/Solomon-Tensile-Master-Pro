@@ -43,42 +43,12 @@ u_scale = scale_map[unit_input]
 
 apply_zeroing = st.sidebar.checkbox("Apply Toe-Compensation (Shift to 0,0)", value=True)
 
-# --- 4. Robust Data Loader ---
-def smart_load(file):
-    try:
-        raw_bytes = file.getvalue()
-        content = raw_bytes.decode("utf-8", errors="ignore")
-        lines = content.splitlines()
-        start_row = 0
-        for i, line in enumerate(lines):
-            if len(re.findall(r"[-+]?\d*\.\d+|\d+", line)) >= 2:
-                start_row = i
-                break
-        sep = '\t' if '\t' in lines[start_row] else (',' if ',' in lines[start_row] else r'\s+')
-        df = pd.read_csv(io.StringIO("\n".join(lines[start_row:])), sep=sep, engine='python', on_bad_lines='skip')
-        df.columns = [str(c).strip() for c in df.columns]
-        return df
-    except: return None
-
-# --- 5. Main Engine ---
-uploaded_files = st.file_uploader("Upload Samples", type=['csv', 'xlsx', 'txt'], accept_multiple_files=True)
-
-if uploaded_files:
-    all_results = []
-    fig_main = go.Figure()
-    # --- Updated File Uploader ---
-uploaded_files = st.file_uploader(
-    "Upload Samples", 
-    type=['csv', 'xlsx', 'txt'],  # Added xlsx explicitly
-    accept_multiple_files=True
-)
-
-# --- Updated Smart Data Loader ---
+# --- 4. Unified Robust Data Loader ---
 def smart_load(file):
     try:
         ext = file.name.split('.')[-1].lower()
         if ext == 'xlsx':
-            # Specify engine='openpyxl' to ensure it uses the correct library
+            # Uses openpyxl to read modern Excel files
             return pd.read_excel(file, engine='openpyxl')
         
         raw_bytes = file.getvalue()
@@ -96,6 +66,18 @@ def smart_load(file):
     except Exception as e:
         st.error(f"Error loading {file.name}: {e}")
         return None
+
+# --- 5. Main Engine ---
+uploaded_files = st.file_uploader(
+    "Upload Samples", 
+    type=['csv', 'xlsx', 'txt'], 
+    accept_multiple_files=True
+)
+
+if uploaded_files:
+    all_results = []
+    fig_main = go.Figure()
+
     # --- Bulk Update Logic ---
     st.subheader("🛠️ Sample Configuration & Modulus Validation")
     with st.expander("⚡ Bulk Update (Apply to All Samples)"):
@@ -144,10 +126,13 @@ def smart_load(file):
                 if apply_zeroing:
                     shift = -intercept_y / E_slope
                     strain_plot = strain_raw - shift
-                    stress_plot = stress_raw[strain_plot >= 0]
-                    strain_plot = strain_plot[strain_plot >= 0]
+                    mask_pos = strain_plot >= 0
+                    strain_plot, stress_plot = strain_plot[mask_pos], stress_raw[mask_pos]
+                    f_final = df_clean[f_col].values[mask_pos]
+                    d_final = disp_mm[mask_pos]
                 else:
                     strain_plot, stress_plot = strain_raw, stress_raw
+                    f_final, d_final = df_clean[f_col].values, disp_mm
 
                 # Mini Preview Plot
                 fig_mini = go.Figure()
@@ -170,8 +155,8 @@ def smart_load(file):
                 y_stress = stress_plot[idx_yield[0]] if len(idx_yield) > 0 else np.nan
                 y_strain = strain_plot[idx_yield[0]] if len(idx_yield) > 0 else np.nan
                 
-                try: work_j = np.trapezoid(df_clean[f_col].values, disp_mm / 1000.0)
-                except: work_j = np.trapz(df_clean[f_col].values, disp_mm / 1000.0)
+                try: work_j = np.trapezoid(f_final, d_final / 1000.0)
+                except: work_j = np.trapz(f_final, d_final / 1000.0)
                 
                 all_results.append({
                     "Sample": file.name,
