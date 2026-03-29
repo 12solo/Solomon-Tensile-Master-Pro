@@ -156,5 +156,44 @@ if uploaded_files:
             else:
                 ctrl_col.error("Insufficient points.")
 
-    # --- 6. Results & Export (CRITICAL FIX FOR NameError) ---
+   # --- 6. Results & Export (FIXED INDENTATION) ---
     if all_results:
+        # This block must be indented
+        res_df = pd.DataFrame(all_results)
+        
+        st.divider()
+        st.subheader("Global Stress-Strain Comparison")
+        fig_main.update_layout(
+            xaxis_title="Strain (%)", 
+            yaxis_title="Stress (MPa)", 
+            template="plotly_white"
+        )
+        st.plotly_chart(fig_main, use_container_width=True)
+
+        st.subheader(f"📊 Batch Summary Statistics (n={len(res_df)})")
+        stats_df = res_df.drop(columns='Sample').agg(['mean', 'std', 'count']).T
+        stats_df.columns = ['Mean', 'Std. Deviation', 'n']
+        st.table(stats_df.style.format("{:.2f}"))
+        st.dataframe(res_df, hide_index=True)
+
+        # Excel Export logic
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            res_df.to_excel(writer, sheet_name='Individual_Samples', index=False)
+            stats_df.to_excel(writer, sheet_name='Batch_Statistics')
+            
+            workbook = writer.book
+            for sheet_name in ['Individual_Samples', 'Batch_Statistics']:
+                worksheet = writer.sheets[sheet_name]
+                worksheet.set_column('A:Z', 20)
+
+        # Download button remains inside the IF block
+        st.download_button(
+            label=f"📥 Download Official Report (n={len(res_df)})", 
+            data=output.getvalue(), 
+            file_name=f"{project_name}_Final_Report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    else:
+        # Optional: Add a message if the list is empty
+        st.warning("No valid results found. Please adjust your fitting ranges.")
