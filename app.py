@@ -157,7 +157,7 @@ if uploaded_files:
 
         with st.expander(f"Adjust & Preview: {file.name}", expanded=False):
             ctrl_col, prev_col = st.columns([1, 2])
-            current_range = ctrl_col.slider("Modulus Fit Range (%)", 0.0, 10.0, (0.2, 1.0), key=f"range_{file.name}")
+            current_range = ctrl_col.slider("Modulus Fit Range (%)", 0.0, 20.0, (0.2, 1.0), key=f"range_{file.name}")
             
             mask_e = (strain_raw >= current_range[0]) & (strain_raw <= current_range[1])
             if np.sum(mask_e) >= 3:
