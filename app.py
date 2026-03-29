@@ -9,8 +9,17 @@ import requests
 from PIL import Image
 from streamlit_drawable_canvas import st_canvas
 
-# --- 1. Page Configuration ---
+# --- 1. Page Configuration & Custom Font Styling ---
 st.set_page_config(page_title="Solomon Tensile Suite", layout="wide")
+
+# Injecting the requested CSS font style
+st.markdown("""
+    <style>
+    html, body, [class*="css"], .stMarkdown, .stText, .stButton, .stSelectbox, .stTable {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # --- 2. Professional Logo & Header ---
 logo_url = "https://raw.githubusercontent.com/12solo/Tensile-test-extrapolator/main/logo%20s.png"
@@ -129,7 +138,7 @@ else:
 if uploaded_files:
     all_results = []
     plot_data_storage = {} 
-    modulus_fit_storage = {} # Store the fit lines for the main plot
+    modulus_fit_storage = {} 
 
     st.subheader("🛠️ Sample Configuration & Modulus Validation")
     with st.expander("⚡ Bulk Update (Apply to All Samples)"):
@@ -186,12 +195,10 @@ if uploaded_files:
 
                 plot_data_storage[custom_name] = (strain_plot, stress_plot)
                 
-                # Create Modulus Fit Data for final plot
                 fit_x = np.linspace(0, current_range[1] * 2, 20)
                 fit_y = E_slope * fit_x + (0 if apply_zeroing else intercept_y)
                 modulus_fit_storage[custom_name] = (fit_x, fit_y)
 
-                # Small Preview
                 fig_mini = go.Figure()
                 fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color='teal')))
                 fig_mini.add_trace(go.Scatter(x=fit_x, y=fit_y, name="Fit", line=dict(dash='dot', color='red')))
@@ -224,7 +231,6 @@ if uploaded_files:
             fig_main = go.Figure()
             for name, data in plot_data_storage.items():
                 fig_main.add_trace(go.Scatter(x=data[0], y=data[1], name=name, mode='lines', hovertemplate='Strain: %{x:.2f}%<br>Stress: %{y:.2f} MPa'))
-                # Show the red dotted line for the "last" sample adjusted or if only one exists
                 if len(plot_data_storage) == 1:
                     fx, fy = modulus_fit_storage[name]
                     fig_main.add_trace(go.Scatter(x=fx, y=fy, name="Modulus Fit", line=dict(dash='dot', color='red')))
@@ -241,7 +247,6 @@ if uploaded_files:
             for i, (name, data) in enumerate(plot_data_storage.items()):
                 color = journal_colors[i % len(journal_colors)]
                 ax.plot(data[0], data[1], label=name, color=color, linestyle='-', lw=line_thickness)
-                # Show Modulus Fit for Single Sample static plots
                 if len(plot_data_storage) == 1:
                     fx, fy = modulus_fit_storage[name]
                     ax.plot(fx, fy, color='red', linestyle=':', lw=1.5, label='Modulus Fit')
