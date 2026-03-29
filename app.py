@@ -5,29 +5,50 @@ import plotly.graph_objects as go
 import io
 import re
 
+import streamlit as st
+import io
+import requests
+
 # --- 1. Page Configuration ---
-st.set_page_config(
-    page_title="Solomon Tensile Suite | Mechanical Characterization", 
-    page_icon="🔬",
-    layout="wide"
-)
+st.set_page_config(page_title="Solomon Tensile Suite", layout="wide")
 
-# --- 2. Professional Header & Technical Abstract ---
-st.title("Solomon Tensile Suite v3.4")
-st.subheader("Advanced Constitutive Analysis & Batch Processing Framework")
+# --- 2. Professional Logo & Header ---
+# High-quality URL to the Solomon logo
+logo_url = "https://raw.githubusercontent.com/12solo/Tensile-test-extrapolator/main/logo%20s.png"
 
-st.markdown("""
----
-**Technical Overview:** This analytical suite is engineered for the **high-fidelity characterization** of polymer deformation mechanics. 
-It provides automated workflows for extracting critical constitutive parameters from raw experimental data, 
-specifically optimized for **non-linear viscoelastic materials** and biodegradable poly-blends (PBAT/PLA).
+# Setup the two-column header
+col_logo, col_text = st.columns([1, 5])
 
-**Core Capabilities:**
-* **Toe-Region Compensation:** Automated zero-strain alignment via linear elastic extrapolation.
-* **Constitutive Metrics:** Calculation of Young’s Modulus ($E$), 0.2% Offset Yield Strength ($\sigma_y$), and Modulus of Toughness ($U_T$).
-* **Batch Normalization:** Statistical reduction of multi-specimen datasets to determine mean mechanical performance and variance.
----
+# Column 1: The Logo Art
+with col_logo:
+    try:
+        # professional scale and padding
+        st.image(logo_url, width=150) 
+    except:
+        # Fallback if image fails, a clean scientific icon
+        st.header("🔬")
+
+# Column 2: Creative Title & Subtle Branding
+with col_text:
+    # A powerful, bold title
+    st.title("Solomon Tensile Suite v1.9")
+    
+    # A short, impactful tagline that frames the eco-research
+    st.markdown("""
+    **Analytical Framework for Bio-Composite Strain Behavior** 🚀
+    ---
+    *Characterizing Molecular Deformation from Raw Data*
+    """)
+
+# --- 3. Creative Data Info Box ---
+# This info box uses high-contrast styling to look like a software readout
+st.info("""
+A high-fidelity analysis package engineered for the formal characterization of polymer deformation mechanics.
+Optimized for the PBAT/PLA 'premature termination' problem via advanced linear extrapolation of the drawing plateau.
+Bridges the gap between empirical lab data and theoretical failure.
 """)
+
+# (Continue your other calculations below)
 
 # --- 2. Sidebar: Professional Inputs ---
 st.sidebar.header("📝 Project Metadata")
