@@ -166,19 +166,18 @@ if uploaded_files:
                 else:
                     strain_plot, stress_plot = strain_raw, stress_raw
 
-                # Store data for visualization
                 plot_data_storage[file.name] = (strain_plot, stress_plot)
 
-                # Small preview
                 fig_mini = go.Figure()
                 fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color='teal')))
                 fig_mini.update_layout(height=250, margin=dict(l=0, r=0, t=0, b=0), template="plotly_white", showlegend=False)
                 prev_col.plotly_chart(fig_mini, use_container_width=True)
 
                 all_results.append({
-                    "Sample": file.name, "Modulus (E) [MPa]": round(E_slope * 100, 1),
-                    "Yield Stress [MPa]": round(stress_plot[np.argmax(stress_plot)], 2), # Placeholder logic
-                    "Stress @ Peak [MPa]": round(stress_plot[-1], 2), "Strain @ Peak [%]": round(strain_plot[-1], 2)
+                    "Sample": file.name, 
+                    "Modulus (E) [MPa]": round(E_slope * 100, 1),
+                    "Stress @ Peak [MPa]": round(stress_plot[-1], 2), 
+                    "Strain @ Peak [%]": round(strain_plot[-1], 2)
                 })
             else:
                 ctrl_col.error("Insufficient points.")
@@ -188,7 +187,6 @@ if uploaded_files:
         res_df = pd.DataFrame(all_results)
         st.divider()
         
-        # Toggle for Plot Type
         view_mode = st.radio("Select Visualization Mode", ["Interactive (Cursor Inspection)", "Static (High-Res Journal TIFF)"], horizontal=True)
 
         if view_mode == "Interactive (Cursor Inspection)":
@@ -208,30 +206,57 @@ if uploaded_files:
             plt.rcParams.update({"font.family": "serif", "font.serif": ["Times New Roman"], "font.size": 12, "axes.linewidth": 1.5})
             fig, ax = plt.subplots(figsize=(8, 6))
             colors = plt.cm.viridis(np.linspace(0, 0.8, len(plot_data_storage)))
-            
             for i, (name, data) in enumerate(plot_data_storage.items()):
                 ax.plot(data[0], data[1], label=name, color=colors[i], lw=2)
-            
             ax.set_xlim(left=0); ax.set_ylim(bottom=0)
             ax.set_xlabel('Strain (%)', fontweight='bold'); ax.set_ylabel('Stress (MPa)', fontweight='bold')
             ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
             ax.grid(True, linestyle=':', alpha=0.6); ax.legend(frameon=False, loc='lower right')
-            
             st.pyplot(fig)
             
             img_buffer = io.BytesIO()
             fig.savefig(img_buffer, format="tiff", dpi=300, bbox_inches='tight')
-            st.download_button(label="🖼️ Download High-Res TIFF (300 DPI)", data=img_buffer.getvalue(), file_name=f"{project_name}_Journal.tiff", mime="image/tiff")
+            st.download_button(label="🖼️ Download High-Res TIFF", data=img_buffer.getvalue(), file_name=f"{project_name}_Journal.tiff")
 
-        # Table Statistics
+        # --- 10. NEW: Batch Comparison Section ---
+        st.divider()
+        st.subheader("⚖️ Batch Property Comparison")
+        
+        col_comp1, col_comp2 = st.columns([1, 2])
+        control_sample = col_comp1.selectbox("Select Control Sample (Baseline)", res_df["Sample"].tolist())
+        
+        if control_sample:
+            baseline = res_df[res_df["Sample"] == control_sample].iloc[0]
+            comp_df = res_df.copy()
+            
+            # Calculate % Differences relative to baseline
+            comp_df["Modulus Δ (%)"] = ((comp_df["Modulus (E) [MPa]"] - baseline["Modulus (E) [MPa]"]) / baseline["Modulus (E) [MPa]"]) * 100
+            comp_df["Strength Δ (%)"] = ((comp_df["Stress @ Peak [MPa]"] - baseline["Stress @ Peak [MPa]"]) / baseline["Stress @ Peak [MPa]"]) * 100
+            
+            # Formatting for display
+            st.dataframe(
+                comp_df[["Sample", "Modulus (E) [MPa]", "Modulus Δ (%)", "Stress @ Peak [MPa]", "Strength Δ (%)"]].style.format({
+                    "Modulus Δ (%)": "{:+.1f}%",
+                    "Strength Δ (%)": "{:+.1f}%"
+                }).background_gradient(subset=["Modulus Δ (%)", "Strength Δ (%)"], cmap="RdYlGn"),
+                hide_index=True, use_container_width=True
+            )
+
+        # --- 11. Individual Results & Summary ---
+        st.divider()
         st.subheader(f"📊 Batch Summary Statistics (n={len(res_df)})")
         stats_df = res_df.drop(columns='Sample').agg(['mean', 'std', 'count']).T
         stats_df.columns = ['Mean', 'Std. Deviation', 'n']
         st.table(stats_df.style.format("{:.2f}"))
         
+        st.subheader("📋 Individual Test Records")
+        st.dataframe(res_df, hide_index=True, use_container_width=True)
+        
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             res_df.to_excel(writer, sheet_name='Samples', index=False)
             stats_df.to_excel(writer, sheet_name='Stats')
+            if control_sample:
+                comp_df.to_excel(writer, sheet_name='Comparison_Analysis', index=False)
         
-        st.download_button(label="📥 Download Excel Report", data=output.getvalue(), file_name=f"{project_name}_Report.xlsx")
+        st.download_button(label="📥 Download Comprehensive Excel Report", data=output.getvalue(), file_name=f"{project_name}_Full_Report.xlsx")
