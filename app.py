@@ -8,7 +8,7 @@ import re
 # --- 1. Page Config ---
 st.set_page_config(page_title="Solomon Tensile Suite Pro", layout="wide")
 st.title("Solomon Tensile Suite v3.4")
-st.info("Manual Unit Override & Scientific Validation Mode")
+st.info("Tensile test batch ananysis")
 
 # --- 2. Sidebar: Professional Inputs ---
 st.sidebar.header("📝 Project Metadata")
