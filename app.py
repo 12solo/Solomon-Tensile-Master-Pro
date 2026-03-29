@@ -174,21 +174,34 @@ if uploaded_files:
                 ctrl_col.error("Insufficient points in range.")
 
     # --- 6. Final Reporting Dashboard ---
-    st.divider()
-    st.subheader("Global Stress-Strain Comparison")
-    fig_main.update_layout(
-        xaxis_title="Strain (%)", yaxis_title="Stress (MPa)",
-        template="plotly_white", hovermode="x unified"
-    )
-    st.plotly_chart(fig_main, use_container_width=True)
-
-    if all_results:
-        res_df = pd.DataFrame(all_results)
-        st.subheader("📊 Batch Summary Statistics")
-        st.table(res_df.drop(columns='Sample').agg(['mean', 'std']).T.style.format("{:.2f}"))
-        st.dataframe(res_df, hide_index=True)
-
+   # --- Updated Excel Export with Specimen Count (n=X) ---
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            res_df.to_excel(writer, sheet_name='Summary', index=False)
-        st.download_button("📥 Download Official Report", output.getvalue(), f"{project_name}_Final_Report.xlsx")
+            # 1. Individual Sample Results Sheet
+            res_df.to_excel(writer, sheet_name='Individual_Samples', index=False)
+            
+            # 2. Batch Summary Statistics Sheet
+            # Calculate Mean, SD, and Count (n)
+            stats_summary = res_df.drop(columns='Sample').agg(['mean', 'std', 'count']).T
+            # Rename 'count' to 'Specimen Count (n)' for professional clarity
+            stats_summary.columns = ['Mean', 'Std. Deviation', 'Specimen Count (n)']
+            
+            stats_summary.to_excel(writer, sheet_name='Batch_Statistics')
+            
+            # Formatting for professional report
+            workbook = writer.book
+            header_format = workbook.add_format({'bold': True, 'bg_color': '#D7E4BC', 'border': 1})
+            num_format = workbook.add_format({'num_format': '0.00', 'border': 1})
+            
+            for sheet_name in ['Individual_Samples', 'Batch_Statistics']:
+                worksheet = writer.sheets[sheet_name]
+                # Auto-adjust column width for readability
+                worksheet.set_column('A:Z', 22, num_format)
+                
+        st.download_button(
+            label=f"📥 Download Official Report (n={len(res_df)})", 
+            data=output.getvalue(), 
+            file_name=f"{project_name}_Final_Report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            help="Click to download the Excel report containing individual data, means, and standard deviations."
+        )
