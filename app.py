@@ -15,8 +15,8 @@ st.sidebar.header("📝 Project Metadata")
 project_name = st.sidebar.text_input("Research Topic", "PBAT-PLA-Biocomposites")
 
 st.sidebar.header("📏 Specimen Geometry")
-thickness = st.sidebar.number_input("Thickness (mm)", value=2.0, step=0.1)
-width = st.sidebar.number_input("Width (mm)", value=6.0, step=0.1)
+thickness = st.sidebar.number_input("Thickness (mm)", value=4.0, step=0.1)
+width = st.sidebar.number_input("Width (mm)", value=4.0, step=0.1)
 gauge_length = st.sidebar.number_input("Initial Gauge Length (L0) [mm]", value=25.0, step=1.0)
 area = width * thickness 
 
