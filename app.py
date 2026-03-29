@@ -70,9 +70,12 @@ if uploaded_files:
         else:
             df_full = df
 
-        # --- Research Calculations ---
-        df_full['Stress (MPa)'] = df_full[f_col] / area
-        df_full['Strain (%)'] = (df_full[d_col] / gauge_length) * 100
+      # --- Research Calculations ---
+# Calculate energy using the trapezoidal rule (handles NumPy 1.x and 2.x)
+try:
+    energy_j = np.trapezoid(df_full[f_col], df_full[d_col] / 1000)
+except AttributeError:
+    energy_j = np.trapz(df_full[f_col], df_full[d_col] / 1000)
         
         # Young's Modulus (E)
         mask_e = (df_full['Strain (%)'] >= ym_start) & (df_full['Strain (%)'] <= ym_end)
