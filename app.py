@@ -118,6 +118,14 @@ if uploaded_files:
         fig.add_trace(go.Scatter(x=strain, y=stress, name=file.name))
 
     # --- 5. Reporting Dashboard ---
+    # ADDED AXIS NAMES HERE
+    fig.update_layout(
+        xaxis_title="Strain (%)",
+        yaxis_title="Stress (MPa)",
+        template="plotly_white",
+        hovermode="x unified"
+    )
+    
     st.plotly_chart(fig, use_container_width=True)
     
     if all_results:
