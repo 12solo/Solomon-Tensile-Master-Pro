@@ -65,7 +65,74 @@ def smart_load(file):
     except Exception as e:
         st.error(f"Error loading {file.name}: {e}")
         return None
+from streamlit_drawable_canvas import st_canvas
 
+# --- 4b. Image Digitizer Module ---
+def image_digitizer_ui():
+    st.subheader("🖼️ Plot Digitizer Mode")
+    digitizer_file = st.file_uploader("Upload Image/Plot to Digitize", type=["png", "jpg", "jpeg"])
+    
+    if digitizer_file:
+        img = Image.open(digitizer_file)
+        
+        col_img, col_ctrl = st.columns([2, 1])
+        
+        with col_ctrl:
+            st.info("1. Click Origin (0,0)\n2. Click Max X\n3. Click Max Y\n4. Trace Curve")
+            real_max_x = st.number_input("Real Max Strain (%)", value=10.0)
+            real_max_y = st.number_input("Real Max Stress (MPa)", value=100.0)
+            
+        with col_img:
+            # The Canvas for clicking
+            canvas_result = st_canvas(
+                fill_color="rgba(255, 165, 0, 0.3)",
+                stroke_width=2,
+                stroke_color="#ff0000",
+                background_image=img,
+                update_streamlit=True,
+                height=img.height * (800 / img.width), # Responsive scaling
+                width=800,
+                drawing_mode="point",
+                key="canvas",
+            )
+
+        if canvas_result.json_data is not None:
+            df_points = pd.json_normalize(canvas_result.json_data["objects"])
+            if not df_points.empty:
+                # Coordinate Transformation Logic
+                coords = df_points[['left', 'top']].values
+                if len(coords) >= 3:
+                    origin = coords[0]
+                    max_x_px = coords[1]
+                    max_y_px = coords[2]
+                    curve_points = coords[3:]
+                    
+                    # Math for conversion
+                    scale_x = real_max_x / (max_x_px[0] - origin[0])
+                    scale_y = real_max_y / (origin[1] - max_y_px[1])
+                    
+                    digitized_data = []
+                    for p in curve_points:
+                        strain = (p[0] - origin[0]) * scale_x
+                        stress = (origin[1] - p[1]) * scale_y
+                        digitized_data.append({"Strain (%)": strain, "Stress (MPa)": stress})
+                    
+                    new_df = pd.DataFrame(digitized_data)
+                    st.success(f"Digitized {len(new_df)} points!")
+                    return new_df, f"Digitized_{digitizer_file.name}"
+    return None, None
+
+# --- Add this inside Section 5 (Main Engine) ---
+# Replace your current 'uploaded_files' logic with a toggle
+mode = st.radio("Input Mode", ["File Upload", "Image Digitizer"], horizontal=True)
+
+if mode == "Image Digitizer":
+    d_df, d_name = image_digitizer_ui()
+    if d_df is not None:
+        # We manually create a 'file-like' object to trick your engine
+        uploaded_files = [type('UploadedFile', (object,), {'name': d_name, 'getvalue': lambda: d_df, 'df': d_df})]
+else:
+    uploaded_files = st.file_uploader("Upload Samples", type=['csv', 'xlsx', 'txt'], accept_multiple_files=True)
 # --- 5. Main Engine ---
 uploaded_files = st.file_uploader(
     "Upload Samples", 
