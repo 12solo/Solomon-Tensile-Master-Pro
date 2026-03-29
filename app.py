@@ -173,19 +173,18 @@ if uploaded_files:
                 fig_mini.update_layout(height=250, margin=dict(l=0, r=0, t=0, b=0), template="plotly_white", showlegend=False)
                 prev_col.plotly_chart(fig_mini, use_container_width=True)
 
-                # --- ADVANCED ANALYTICS ---
+                # Advanced Analytics
                 offset_line = E_slope * (strain_plot - 0.2)
                 idx_yield = np.where((stress_plot - offset_line) < 0)[0]
                 y_stress = stress_plot[idx_yield[0]] if len(idx_yield) > 0 else np.nan
                 y_strain = strain_plot[idx_yield[0]] if len(idx_yield) > 0 else np.nan
                 
-                # Energy Calculation (Trapezoidal)
                 f_final = stress_plot * area
-                d_final_m = (strain_plot / 100 * gauge_length) / 1000.0 # Deformation in meters
+                d_final_m = (strain_plot / 100 * gauge_length) / 1000.0
                 try: work_j = np.trapezoid(f_final, d_final_m)
                 except: work_j = np.trapz(f_final, d_final_m)
                 
-                toughness = (work_j / (area * gauge_length * 1e-9)) / 1e6 # MJ/m3
+                toughness = (work_j / (area * gauge_length * 1e-9)) / 1e6
 
                 all_results.append({
                     "Sample": file.name, 
@@ -221,22 +220,44 @@ if uploaded_files:
             st.plotly_chart(fig_main, use_container_width=True)
 
         else:
-            plt.rcParams.update({"font.family": "serif", "font.serif": ["Times New Roman"], "font.size": 12, "axes.linewidth": 1.5})
+            # --- JOURNAL QUALITY STATIC PLOT ---
+            plt.rcParams.update({
+                "font.family": "serif", 
+                "font.serif": ["Times New Roman"], 
+                "font.size": 12, 
+                "axes.linewidth": 1.5,
+                "xtick.direction": "in",
+                "ytick.direction": "in"
+            })
+            
             fig, ax = plt.subplots(figsize=(8, 6))
-            colors = plt.cm.viridis(np.linspace(0, 0.8, len(plot_data_storage)))
+            
+            # High-Quality Journal Palette (Basic but distinct colors)
+            journal_colors = ['#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b', '#e377c2']
+            line_styles = ['-', '--', '-.', ':', (0, (3, 5, 1, 5)), (0, (5, 1)), (0, (1, 1))]
+            
             for i, (name, data) in enumerate(plot_data_storage.items()):
-                ax.plot(data[0], data[1], label=name, color=colors[i], lw=2)
+                color = journal_colors[i % len(journal_colors)]
+                style = line_styles[i % len(line_styles)]
+                ax.plot(data[0], data[1], label=name, color=color, linestyle=style, lw=2.5)
+            
             ax.set_xlim(left=0); ax.set_ylim(bottom=0)
-            ax.set_xlabel('Strain (%)', fontweight='bold'); ax.set_ylabel('Stress (MPa)', fontweight='bold')
-            ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
-            ax.grid(True, linestyle=':', alpha=0.6); ax.legend(frameon=False, loc='lower right')
+            ax.set_xlabel('Strain (%)', fontweight='bold', labelpad=10)
+            ax.set_ylabel('Stress (MPa)', fontweight='bold', labelpad=10)
+            
+            # Journal Standard: Simple and clean
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.grid(True, linestyle='--', alpha=0.3)
+            ax.legend(frameon=False, loc='lower right', fontsize=10)
+            
             st.pyplot(fig)
             
             img_buffer = io.BytesIO()
             fig.savefig(img_buffer, format="tiff", dpi=300, bbox_inches='tight')
-            st.download_button(label="🖼️ Download High-Res TIFF", data=img_buffer.getvalue(), file_name=f"{project_name}_Journal.tiff")
+            st.download_button(label="🖼️ Download Journal TIFF (300 DPI)", data=img_buffer.getvalue(), file_name=f"{project_name}_Journal.tiff")
 
-        # --- 10. Batch Comparison Section (Extended) ---
+        # --- 10. Batch Comparison Section ---
         st.divider()
         st.subheader("⚖️ Batch Property Comparison")
         col_comp1, col_comp2 = st.columns([1, 2])
@@ -246,7 +267,6 @@ if uploaded_files:
             baseline = res_df[res_df["Sample"] == control_sample].iloc[0]
             comp_df = res_df.copy()
             
-            # Calculate % Differences
             comp_df["Modulus Δ (%)"] = ((comp_df["Modulus (E) [MPa]"] - baseline["Modulus (E) [MPa]"]) / baseline["Modulus (E) [MPa]"]) * 100
             comp_df["Strength Δ (%)"] = ((comp_df["Stress @ Peak [MPa]"] - baseline["Stress @ Peak [MPa]"]) / baseline["Stress @ Peak [MPa]"]) * 100
             comp_df["Toughness Δ (%)"] = ((comp_df["Toughness [MJ/m³]"] - baseline["Toughness [MJ/m³]"]) / baseline["Toughness [MJ/m³]"]) * 100
@@ -260,7 +280,7 @@ if uploaded_files:
                 hide_index=True, use_container_width=True
             )
 
-        # --- 11. Full Table Display (as requested in image) ---
+        # --- 11. Individual Results & Summary ---
         st.divider()
         st.subheader(f"📊 Batch Summary Statistics (n={len(res_df)})")
         stats_df = res_df.drop(columns='Sample').agg(['mean', 'std', 'count']).T
@@ -268,13 +288,11 @@ if uploaded_files:
         st.table(stats_df.style.format("{:.2f}"))
         
         st.subheader("📋 Complete Individual Test Records")
-        # Ensure the table shows all columns from the image
         st.dataframe(res_df[[
             "Sample", "Modulus (E) [MPa]", "Yield Stress [MPa]", "Yield Strain [%]", 
             "Stress @ Peak [MPa]", "Strain @ Peak [%]", "Work Done [J]", "Toughness [MJ/m³]"
         ]], hide_index=True, use_container_width=True)
         
-        # --- EXPORT ---
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             res_df.to_excel(writer, sheet_name='Samples', index=False)
