@@ -7,8 +7,8 @@ import re
 
 # --- 1. Page Config ---
 st.set_page_config(page_title="Solomon Tensile Suite Pro", layout="wide")
-st.title("Solomon Tensile Suite v2.8")
-st.caption("Auto-Unit Scaling & Professional Batch Analysis")
+st.title("Solomon Tensile Suite v2.9")
+st.caption("Professional Batch Analysis | Toe-Compensation | Manual Scaling")
 
 # --- 2. Sidebar ---
 st.sidebar.header("📏 Specimen Geometry")
@@ -17,7 +17,9 @@ width = st.sidebar.number_input("Width (mm)", value=6.0)
 gauge_length = st.sidebar.number_input("Gauge Length (mm)", value=25.0)
 area = width * thickness 
 
-st.sidebar.header("⚙️ Analysis Settings")
+st.sidebar.header("⚙️ Unit & Analysis Settings")
+# Manual Scale Factor: 1.0 (Normal), 0.001 (mm to m), 1000 (mm to um)
+manual_scale = st.sidebar.number_input("Displacement Scale Factor", value=1.0, help="Multiply raw displacement by this value.")
 apply_zeroing = st.sidebar.checkbox("Apply Toe-Compensation", value=True)
 ym_start = st.sidebar.slider("Modulus Start Strain (%)", 0.0, 5.0, 0.2)
 ym_end = st.sidebar.slider("Modulus End Strain (%)", 0.1, 20.0, 1.0)
@@ -29,7 +31,6 @@ def smart_load(file):
         content = raw_bytes.decode("utf-8", errors="ignore")
         lines = content.splitlines()
         
-        # Skip headers until numeric data block starts
         start_row = 0
         for i, line in enumerate(lines):
             nums = re.findall(r"[-+]?\d*\.\d+|\d+", line)
@@ -54,7 +55,6 @@ if uploaded_files:
         df = smart_load(file)
         if df is None or df.empty: continue
         
-        # Auto-detect Force and Displacement columns
         cols = df.columns.tolist()
         f_col = next((c for c in cols if any(k in c.lower() for k in ['load', 'force', 'n'])), cols[0])
         d_col = next((c for c in cols if any(k in c.lower() for k in ['ext', 'disp', 'mm', 'dist', 'pos'])), cols[1])
@@ -63,58 +63,23 @@ if uploaded_files:
         df[d_col] = pd.to_numeric(df[d_col], errors='coerce')
         df = df.dropna(subset=[f_col, d_col])
 
-        # --- SMART UNIT SCALING ---
-        # If max displacement is huge (e.g. 1120), it's likely already % strain or micrometers
-        raw_disp = df[d_col].values
+        # Apply Manual Scaling and calculate raw Stress/Strain
+        disp_mm = df[d_col].values * manual_scale
+        raw_stress = df[f_col].values / area
+        raw_strain = (disp_mm / gauge_length) * 100
         
-        # Logic: If raw displacement / gauge_length * 100 > 5000%, the unit is wrong.
-        test_strain = (raw_disp / gauge_length) * 100
-        if test_strain.max() > 2000:
-            # Case A: Data was actually in micrometers
-            strain = (raw_disp / 1000) / gauge_length * 100
-            st.info(f"⚡ {file.name}: Scaling displacement from µm to mm.")
-        elif raw_disp.max() > 100 and gauge_length < 50:
-            # Case B: The column was already 'Strain %'
-            strain = raw_disp
-            st.info(f"⚡ {file.name}: Using column 2 as direct Strain %.")
-        else:
-            strain = test_strain
-        
-        stress = df[f_col] / area
-
-        # --- Toe-Compensation & Yield ---
-        mask_e = (strain >= ym_start) & (strain <= ym_end)
-        
+        # Check for empty data in modulus range
+        mask_e = (raw_strain >= ym_start) & (raw_strain <= ym_end)
         if np.sum(mask_e) < 3:
-            st.error(f"❌ {file.name}: Range mismatch. Strain found: 0 to {strain.max():.1f}%. Adjust sliders.")
+            st.error(f"❌ {file.name}: Range mismatch. Max Strain: {raw_strain.max():.1f}%. Adjust Sliders or Scale Factor.")
             continue
 
-        E_slope, intercept_y = np.polyfit(strain[mask_e], stress[mask_e], 1)
+        # --- Modulus & Toe-Compensation ---
+        E_slope, intercept_y = np.polyfit(raw_strain[mask_e], raw_stress[mask_e], 1)
         
         if apply_zeroing:
             shift = -intercept_y / E_slope
-            strain = strain - shift
+            strain = raw_strain - shift
+            # Filter for positive strain
             mask_pos = strain >= 0
-            strain, stress = strain[mask_pos], stress[mask_pos]
-
-        # 0.2% Offset Yield
-        offset_line = E_slope * (strain - 0.2)
-        idx_yield = np.where((stress - offset_line) < 0)[0]
-        y_stress = stress.iloc[idx_yield[0]] if len(idx_yield) > 0 else np.nan
-
-        all_results.append({
-            "Sample": file.name,
-            "Modulus (MPa)": round(E_slope * 100, 1),
-            "Yield (MPa)": round(y_stress, 2),
-            "UTS (MPa)": round(stress.max(), 2),
-            "Elongation (%)": round(strain.iloc[-1], 2)
-        })
-
-        fig.add_trace(go.Scatter(x=strain, y=stress, name=file.name))
-
-    st.plotly_chart(fig, use_container_width=True)
-    if all_results:
-        res_df = pd.DataFrame(all_results)
-        st.subheader("📊 Batch Metrics")
-        st.table(res_df.drop(columns='Sample').agg(['mean', 'std']).T)
-        st.dataframe(res_df)
+            strain, stress = strain[mask_pos], raw_stress[mask
