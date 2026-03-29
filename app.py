@@ -43,6 +43,10 @@ u_scale = scale_map[unit_input]
 
 apply_zeroing = st.sidebar.checkbox("Apply Toe-Compensation (Shift to 0,0)", value=True)
 
+# --- NEW: Visual Customization ---
+st.sidebar.header("🎨 Plot Customization")
+line_thickness = st.sidebar.slider("Line Thickness (Journal Plot)", 0.5, 5.0, 2.5, 0.5)
+
 # --- 4. Digitizer Helper Class ---
 class DigitizedFile:
     def __init__(self, name, df):
@@ -231,21 +235,16 @@ if uploaded_files:
             })
             
             fig, ax = plt.subplots(figsize=(8, 6))
-            
-            # High-Quality Journal Palette (Basic but distinct colors)
-            journal_colors = ['#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b', '#e377c2']
-            line_styles = ['-', '--', '-.', ':', (0, (3, 5, 1, 5)), (0, (5, 1)), (0, (1, 1))]
+            journal_colors = ['#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
             
             for i, (name, data) in enumerate(plot_data_storage.items()):
                 color = journal_colors[i % len(journal_colors)]
-                style = line_styles[i % len(line_styles)]
-                ax.plot(data[0], data[1], label=name, color=color, linestyle=style, lw=2.5)
+                # Applied sidebar line_thickness slider here
+                ax.plot(data[0], data[1], label=name, color=color, linestyle='-', lw=line_thickness)
             
             ax.set_xlim(left=0); ax.set_ylim(bottom=0)
             ax.set_xlabel('Strain (%)', fontweight='bold', labelpad=10)
             ax.set_ylabel('Stress (MPa)', fontweight='bold', labelpad=10)
-            
-            # Journal Standard: Simple and clean
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
             ax.grid(True, linestyle='--', alpha=0.3)
