@@ -47,7 +47,7 @@ class DigitizedFile:
     def __init__(self, name, df):
         self.name = name
         self.df = df
-    def getvalue(self): return None # Not needed for digitized data
+    def getvalue(self): return None 
 
 # --- 5. Image Digitizer Module ---
 def image_digitizer_ui():
@@ -88,7 +88,7 @@ def image_digitizer_ui():
 
 # --- 6. Unified Robust Data Loader ---
 def smart_load(file):
-    if hasattr(file, 'df'): return file.df # Return digitized df directly
+    if hasattr(file, 'df'): return file.df 
     try:
         ext = file.name.split('.')[-1].lower()
         if ext == 'xlsx': return pd.read_excel(file, engine='openpyxl')
@@ -122,49 +122,20 @@ if uploaded_files:
     all_results = []
     fig_main = go.Figure()
 
+    # Bulk Update must be OUTSIDE the file loop to avoid duplicate ID errors
     st.subheader("🛠️ Sample Configuration & Modulus Validation")
     with st.expander("⚡ Bulk Update (Apply to All Samples)"):
         b1, b2 = st.columns([3, 1])
         bulk_range = b1.slider("Select Global Modulus Range (%)", 0.0, 10.0, (0.2, 1.0), key="bulk_slider")
         if b2.button("Apply to All"):
             for file in uploaded_files:
-                st.session_state[f"range_{file.name}"] = bulk_range
+                if file: st.session_state[f"range_{file.name}"] = bulk_range
             st.rerun()
 
     for file in uploaded_files:
+        if file is None: continue
         df = smart_load(file)
         if df is None or df.empty: continue
-        
-        cols = df.columns.tolist()
-        # Auto-select columns if digitized
-        def_f = cols[1] if "Digitized Stress" in cols else cols[0]
-        def_d = cols[0] if "Digitized Strain" in cols else cols[1]
-
-        f_col = st.sidebar.selectbox(f"Force/Stress Col ({file.name})", cols, index=cols.index(def_f), key=f"f_{file.name}")
-        d_col = st.sidebar.selectbox(f"Disp/Strain Col ({file.name})", cols, index=cols.index(def_d), key=f"d_{file.name}")
-        
-        df_clean = df[[f_col, d_col]].apply(pd.to_numeric, errors='coerce').dropna()
-        
-        # Handle unit logic based on source
-      # --- 8. Core Processing Engine ---
-# --- 8. Core Processing Engine ---
-if uploaded_files:
-    all_results = []
-    fig_main = go.Figure()
-
-    st.subheader("🛠️ Sample Configuration & Modulus Validation")
-    with st.expander("⚡ Bulk Update (Apply to All Samples)"):
-        b1, b2 = st.columns([3, 1])
-        bulk_range = b1.slider("Select Global Modulus Range (%)", 0.0, 10.0, (0.2, 1.0), key="bulk_slider")
-        if b2.button("Apply to All"):
-            for file in uploaded_files:
-                st.session_state[f"range_{file.name}"] = bulk_range
-            st.rerun()
-
-    for file in uploaded_files:
-        df = smart_load(file)
-        if df is None or df.empty: 
-            continue
         
         cols = df.columns.tolist()
         def_f = cols[1] if "Digitized Stress" in cols else cols[0]
@@ -224,7 +195,6 @@ if uploaded_files:
                 except AttributeError:
                     work_j = np.trapz(f_final, d_final / 1000.0)
                 
-                # --- FIXED INDENTATION HERE ---
                 all_results.append({
                     "Sample": file.name,
                     "Modulus (E) [MPa]": round(E_slope * 100, 1),
@@ -238,6 +208,7 @@ if uploaded_files:
                 fig_main.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name=file.name))
             else:
                 ctrl_col.error("Insufficient points.")
+
     # --- 9. Final Reports ---
     if all_results:
         res_df = pd.DataFrame(all_results)
