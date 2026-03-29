@@ -146,10 +146,11 @@ if uploaded_files:
         df_clean = df[[f_col, d_col]].apply(pd.to_numeric, errors='coerce').dropna()
         
         # Handle unit logic based on source
-        if "Digitized" in file.name:
-            stress_raw = df_clean[f_col].values
-            strain_raw = df_clean[d_col].values
-            disp_mm = (strain_raw / 100) * gauge_length # Reconstruct disp for Work Done
+       if "Digitized" in file.name:
+    stress_raw = df_clean[f_col].values
+    strain_raw = df_clean[d_col].values
+    # Ensure disp_mm is calculated from the strain to keep lengths identical
+    disp_mm = (strain_raw / 100) * gauge_length
         else:
             disp_mm = df_clean[d_col].values * u_scale
             stress_raw = df_clean[f_col].values / area
@@ -189,7 +190,11 @@ if uploaded_files:
                 y_stress = stress_plot[idx_yield[0]] if len(idx_yield) > 0 else np.nan
                 y_strain = strain_plot[idx_yield[0]] if len(idx_yield) > 0 else np.nan
                 
-                work_j = np.trapz(f_final, d_final / 1000.0)
+           # Replace the failing np.trapz line with this:
+try:
+    work_j = np.trapezoid(f_final, d_final / 1000.0)
+except AttributeError:
+    work_j = np.trapz(f_final, d_final / 1000.0)
                 
                 all_results.append({
                     "Sample": file.name,
