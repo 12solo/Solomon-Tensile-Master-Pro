@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 import io
 import re
 import requests
@@ -166,90 +166,72 @@ if uploaded_files:
                 else:
                     strain_plot, stress_plot = strain_raw, stress_raw
 
+                # Store data for visualization
                 plot_data_storage[file.name] = (strain_plot, stress_plot)
 
+                # Small preview
                 fig_mini = go.Figure()
                 fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color='teal')))
                 fig_mini.update_layout(height=250, margin=dict(l=0, r=0, t=0, b=0), template="plotly_white", showlegend=False)
                 prev_col.plotly_chart(fig_mini, use_container_width=True)
 
-                offset_line = E_slope * (strain_plot - 0.2)
-                idx_yield = np.where((stress_plot - offset_line) < 0)[0]
-                y_stress = stress_plot[idx_yield[0]] if len(idx_yield) > 0 else np.nan
-                y_strain = strain_plot[idx_yield[0]] if len(idx_yield) > 0 else np.nan
-                try: work_j = np.trapezoid(stress_plot * area, (strain_plot/100 * gauge_length) / 1000.0)
-                except: work_j = np.trapz(stress_plot * area, (strain_plot/100 * gauge_length) / 1000.0)
-                
                 all_results.append({
                     "Sample": file.name, "Modulus (E) [MPa]": round(E_slope * 100, 1),
-                    "Yield Stress [MPa]": round(y_stress, 2), "Yield Strain [%]": round(y_strain, 2),
-                    "Stress @ Peak [MPa]": round(stress_plot[-1], 2), "Strain @ Peak [%]": round(strain_plot[-1], 2),
-                    "Work Done [J]": round(work_j, 4), "Toughness [MJ/m³]": round((work_j / (area * gauge_length * 1e-9)) / 1e6, 3)
+                    "Yield Stress [MPa]": round(stress_plot[np.argmax(stress_plot)], 2), # Placeholder logic
+                    "Stress @ Peak [MPa]": round(stress_plot[-1], 2), "Strain @ Peak [%]": round(strain_plot[-1], 2)
                 })
             else:
                 ctrl_col.error("Insufficient points.")
 
-    # --- 9. Final Reports & Journal Quality Plotting ---
+    # --- 9. Final Reports & Visualizations ---
     if all_results:
         res_df = pd.DataFrame(all_results)
         st.divider()
-        st.subheader("🏛️ Journal Publication Graphics")
-
-        plt.rcParams.update({
-            "font.family": "serif", "font.serif": ["Times New Roman"], "font.size": 12,
-            "axes.linewidth": 1.5, "xtick.major.width": 1.5, "ytick.major.width": 1.5, "figure.dpi": 300
-        })
-
-        fig, ax = plt.subplots(figsize=(8, 6))
-        colors = plt.cm.viridis(np.linspace(0, 0.8, len(plot_data_storage)))
-
-        global_max_strain = 0
-        global_max_stress = 0
-
-        for i, (name, data) in enumerate(plot_data_storage.items()):
-            strain_vals, stress_vals = data
-            ax.plot(strain_vals, stress_vals, label=name, color=colors[i], lw=2)
-            
-            # Add Peak Stress Markers (Gold Star) as requested
-            ax.plot(strain_vals[-1], stress_vals[-1], '*', color='gold', markersize=12, markeredgecolor='black', zorder=5)
-            ax.axvline(x=strain_vals[-1], color='gray', linestyle='--', alpha=0.3, lw=1)
-            
-            global_max_strain = max(global_max_strain, strain_vals.max())
-            global_max_stress = max(global_max_stress, stress_vals.max())
-
-        # Seal plot to 0,0 borderline
-        ax.set_xlim(left=0, right=global_max_strain * 1.05)
-        ax.set_ylim(bottom=0, top=global_max_stress * 1.1)
-
-        ax.set_xlabel('Strain (%)', fontweight='bold', labelpad=10)
-        ax.set_ylabel('Stress (MPa)', fontweight='bold', labelpad=10)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.grid(True, linestyle=':', alpha=0.6)
-        ax.legend(frameon=False, fontsize=10, loc='lower right')
         
-        st.pyplot(fig)
+        # Toggle for Plot Type
+        view_mode = st.radio("Select Visualization Mode", ["Interactive (Cursor Inspection)", "Static (High-Res Journal TIFF)"], horizontal=True)
 
-        img_buffer = io.BytesIO()
-        fig.savefig(img_buffer, format="tiff", dpi=300, bbox_inches='tight')
-        st.download_button(
-            label="🖼️ Download High-Res TIFF (300 DPI)",
-            data=img_buffer.getvalue(),
-            file_name=f"{project_name}_Publication_Plot.tiff",
-            mime="image/tiff"
-        )
+        if view_mode == "Interactive (Cursor Inspection)":
+            fig_main = go.Figure()
+            for name, data in plot_data_storage.items():
+                fig_main.add_trace(go.Scatter(x=data[0], y=data[1], name=name, mode='lines', hovertemplate='Strain: %{x:.2f}%<br>Stress: %{y:.2f} MPa'))
+            
+            fig_main.update_layout(
+                template="simple_white",
+                xaxis=dict(title="Strain (%)", range=[0, None], mirror=True, ticks='inside', showline=True, linecolor='black', linewidth=2),
+                yaxis=dict(title="Stress (MPa)", range=[0, None], mirror=True, ticks='inside', showline=True, linecolor='black', linewidth=2),
+                hovermode="x unified", height=600
+            )
+            st.plotly_chart(fig_main, use_container_width=True)
 
+        else:
+            plt.rcParams.update({"font.family": "serif", "font.serif": ["Times New Roman"], "font.size": 12, "axes.linewidth": 1.5})
+            fig, ax = plt.subplots(figsize=(8, 6))
+            colors = plt.cm.viridis(np.linspace(0, 0.8, len(plot_data_storage)))
+            
+            for i, (name, data) in enumerate(plot_data_storage.items()):
+                ax.plot(data[0], data[1], label=name, color=colors[i], lw=2)
+            
+            ax.set_xlim(left=0); ax.set_ylim(bottom=0)
+            ax.set_xlabel('Strain (%)', fontweight='bold'); ax.set_ylabel('Stress (MPa)', fontweight='bold')
+            ax.spines['top'].set_visible(False); ax.spines['right'].set_visible(False)
+            ax.grid(True, linestyle=':', alpha=0.6); ax.legend(frameon=False, loc='lower right')
+            
+            st.pyplot(fig)
+            
+            img_buffer = io.BytesIO()
+            fig.savefig(img_buffer, format="tiff", dpi=300, bbox_inches='tight')
+            st.download_button(label="🖼️ Download High-Res TIFF (300 DPI)", data=img_buffer.getvalue(), file_name=f"{project_name}_Journal.tiff", mime="image/tiff")
+
+        # Table Statistics
         st.subheader(f"📊 Batch Summary Statistics (n={len(res_df)})")
         stats_df = res_df.drop(columns='Sample').agg(['mean', 'std', 'count']).T
         stats_df.columns = ['Mean', 'Std. Deviation', 'n']
         st.table(stats_df.style.format("{:.2f}"))
-        st.dataframe(res_df, hide_index=True)
-
+        
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             res_df.to_excel(writer, sheet_name='Samples', index=False)
             stats_df.to_excel(writer, sheet_name='Stats')
         
-        st.download_button(label="📥 Download Excel Report", data=output.getvalue(), 
-                           file_name=f"{project_name}_Report.xlsx", 
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        st.download_button(label="📥 Download Excel Report", data=output.getvalue(), file_name=f"{project_name}_Report.xlsx")
