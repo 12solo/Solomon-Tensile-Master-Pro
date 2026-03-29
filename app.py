@@ -55,7 +55,7 @@ scale_map = {"Millimeters (mm)": 1.0, "Micrometers (um)": 0.001, "Meters (m)": 1
 u_scale = scale_map[unit_input]
 
 apply_zeroing = st.sidebar.checkbox("Apply Toe-Compensation (Shift to 0,0)", value=True)
-ym_range = st.sidebar.slider("Modulus Fit Range (%)", 0.0, 5.0, (0.2, 1.0))
+ym_range = st.sidebar.slider("Modulus Fit Range (%)", 0.0, 10.0, (0.2, 1.0))
 
 # --- 3. Robust Data Loader ---
 def smart_load(file):
