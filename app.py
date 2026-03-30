@@ -150,7 +150,7 @@ if uploaded_files:
         b1, b2, b3, b4 = st.columns([2, 2, 2, 1])
         bulk_range = b1.slider("Global Modulus Range (%)", 0.0, 20.0, (0.2, 1.0), key="bulk_slider")
         bulk_method = b2.selectbox("Global Yield Method", ["Offset Method", "Departure from Linearity"], key="bulk_method")
-        bulk_val = b3.slider("Global Sensitivity/Offset (%)", 0.0, 45.0, 0.2, 0.05, key="bulk_val") # ADJUSTED TO 45.0
+        bulk_val = b3.slider("Global Sensitivity/Offset (%)", 0.0, 45.0, 0.2, 0.05, key="bulk_val")
         if b4.button("Apply to All"):
             for file in uploaded_files:
                 if file: 
@@ -192,7 +192,7 @@ if uploaded_files:
             
             current_range = c1.slider("Modulus Fit Range (%)", 0.0, 20.0, (0.2, 1.0), key=f"range_{file.name}")
             yield_method = c2.selectbox("Yield Method", ["Offset Method", "Departure from Linearity"], key=f"meth_{file.name}")
-            yield_val = c3.slider("Sensitivity/Offset (%)", 0.0, 45.0, 0.2, 0.05, key=f"val_{file.name}") # ADJUSTED TO 45.0
+            yield_val = c3.slider("Sensitivity/Offset (%)", 0.0, 45.0, 0.2, 0.05, key=f"val_{file.name}")
             
             mask_e = (strain_raw >= current_range[0]) & (strain_raw <= current_range[1])
             
@@ -229,7 +229,7 @@ if uploaded_files:
                 else:
                     y_stress, y_strain, mat_class = "N/A", "N/A", "Brittle"
 
-                # --- LIVE INDICATOR PREVIEW ---
+                # PREVIEW INDICATOR (Keep this for calibration)
                 fig_mini = go.Figure()
                 fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color='#1f77b4')))
                 fig_mini.add_trace(go.Scatter(x=fit_x, y=fit_y, name="Modulus Fit", line=dict(dash='dot', color='#d62728')))
@@ -238,7 +238,7 @@ if uploaded_files:
                     fig_mini.add_trace(go.Scatter(
                         x=[y_strain], y=[y_stress], 
                         mode='markers', 
-                        name='Yield Point Indicator', 
+                        name='Yield Point', 
                         marker=dict(color='orange', size=12, symbol='circle-open-dot')
                     ))
 
@@ -270,17 +270,7 @@ if uploaded_files:
             fig_main = go.Figure()
             for i, (name, data) in enumerate(plot_data_storage.items()):
                 fig_main.add_trace(go.Scatter(x=data[0], y=data[1], name=name, mode='lines', line=dict(width=line_thickness, color=distinct_20[i % 8])))
-                # Also include markers in interactive mode if desired
-                sample_res = res_df[res_df["Sample"] == name].iloc[0]
-                if sample_res["Yield Stress [MPa]"] != "N/A":
-                     fig_main.add_trace(go.Scatter(
-                         x=[sample_res["Yield Strain [%]"]], 
-                         y=[sample_res["Yield Stress [MPa]"]], 
-                         mode='markers', 
-                         marker=dict(color=distinct_20[i % 8], symbol='circle-open', size=10),
-                         showlegend=False
-                     ))
-
+            
             x_lim = res_df["Strain @ Peak [%]"].max() * 1.05 if auto_scale else custom_x_max
             y_lim = res_df["Stress @ Peak [MPa]"].max() * 1.1 if auto_scale else custom_y_max
             fig_main.update_layout(template="simple_white", xaxis=dict(title="Strain (%)", range=[0, x_lim]), yaxis=dict(title="Stress (MPa)", range=[0, y_lim]), height=650)
@@ -289,20 +279,13 @@ if uploaded_files:
             # --- JOURNAL GRADE MATPLOTLIB ---
             plt.rcParams.update({
                 "font.family": "serif", "font.serif": ["Times New Roman"], "font.size": 12,
-                "axes.linewidth": 1.5,
-                "xtick.direction": "in", "ytick.direction": "in",
-                "xtick.major.size": 6, "ytick.major.size": 6,
-                "xtick.top": True, "ytick.right": True
+                "axes.linewidth": 1.5, "xtick.direction": "in", "ytick.direction": "in",
+                "xtick.major.size": 6, "ytick.major.size": 6, "xtick.top": True, "ytick.right": True
             })
             fig, ax = plt.subplots(figsize=(7, 6), dpi=600)
             
             for i, (name, data) in enumerate(plot_data_storage.items()):
                 ax.plot(data[0], data[1], label=name, color=distinct_20[i % 8], lw=line_thickness)
-                # Static marker
-                sample_res = res_df[res_df["Sample"] == name].iloc[0]
-                if sample_res["Yield Stress [MPa]"] != "N/A":
-                    ax.scatter(sample_res["Yield Strain [%]"], sample_res["Yield Stress [MPa]"], 
-                               facecolors='none', edgecolors=distinct_20[i % 8], s=80, lw=1.5, zorder=5)
             
             ax.set_xbound(lower=0); ax.set_ybound(lower=0)
             if not auto_scale:
@@ -313,7 +296,6 @@ if uploaded_files:
             
             ax.xaxis.set_ticks_position('both')
             ax.yaxis.set_ticks_position('both')
-            
             for spine in ax.spines.values():
                 spine.set_linewidth(1.5)
                 spine.set_visible(True)
@@ -335,30 +317,4 @@ if uploaded_files:
                 pil_img = Image.open(img_buf)
                 tiff_buf = io.BytesIO()
                 pil_img.save(tiff_buf, format='TIFF', compression='tiff_lzw', dpi=(600, 600))
-                st.download_button("📥 Download 600DPI TIFF (Journal Ready)", data=tiff_buf.getvalue(), file_name="HighRes_Journal_Plot.tiff", mime="image/tiff")
-            except:
-                st.error("TIFF conversion failed.")
-
-        # Comparison Analysis
-        st.divider()
-        st.subheader("⚖️ Batch Property Comparison")
-        col_comp1, col_comp2 = st.columns([1, 2])
-        control_sample = col_comp1.selectbox("Select Control Sample", res_df["Sample"].tolist())
-        if control_sample:
-            baseline = res_df[res_df["Sample"] == control_sample].iloc[0]
-            comp_df = res_df.copy()
-            for col, base in [("Modulus (E) [MPa]", "Modulus (E) [MPa]"), ("Stress @ Peak [MPa]", "Stress @ Peak [MPa]"), ("Toughness [MJ/m³]", "Toughness [MJ/m³]")]:
-                comp_df[f"{col.split()[0]} Δ (%)"] = ((pd.to_numeric(comp_df[col], errors='coerce') - float(baseline[base])) / float(baseline[base])) * 100
-            st.dataframe(comp_df.style.format("{:+.1f}%", subset=[c for c in comp_df.columns if "Δ" in c]).background_gradient(cmap="RdYlGn", subset=[c for c in comp_df.columns if "Δ" in c]), hide_index=True)
-
-        st.subheader(f"📊 Batch Summary Statistics (n={len(res_df)})")
-        numeric_cols = ["Modulus (E) [MPa]", "Yield Stress [MPa]", "Yield Strain [%]", "Stress @ Peak [MPa]", "Strain @ Peak [%]", "Toughness [MJ/m³]"]
-        st.table(res_df[numeric_cols].apply(pd.to_numeric, errors='coerce').agg(['mean', 'std']).T.style.format("{:.2f}"))
-
-        st.subheader("📋 Complete Individual Test Records")
-        st.dataframe(res_df, hide_index=True, use_container_width=True)
-
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            res_df.to_excel(writer, sheet_name='Samples', index=False)
-        st.download_button(label="📥 Download Full Excel Report", data=output.getvalue(), file_name=f"{project_name}_Report.xlsx")
+                st.download_button("📥 Download 600DPI TIFF (Journal Ready)", data=tiff_buf.getvalue(), file
