@@ -393,4 +393,9 @@ if uploaded_files:
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             res_df.to_excel(writer, sheet_name='Samples', index=False)
             stats_df.to_excel(writer, sheet_name='Stats')
-        st.download_button(label="📥 Download Full Excel Report", data=output.getvalue(), file_name=f"{project_name}_Full_Report.xlsx")
+       st.download_button(
+    label="📥 Download Full Excel Report", 
+    data=output.getvalue(), 
+    file_name=f"{project_name}_Full_Report.xlsx",
+    key="final_excel_download_btn"  # This unique key solves the error
+)
