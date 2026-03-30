@@ -53,12 +53,12 @@ u_scale = scale_map[unit_input]
 apply_zeroing = st.sidebar.checkbox("Apply Toe-Compensation (Shift to 0,0)", value=True)
 
 st.sidebar.header("🎨 Plot Customization")
-line_thickness = st.sidebar.slider("Line Thickness (Journal Plot)", 0.5, 5.0, 2.5, 0.5)
+line_thickness = st.sidebar.slider("Line Thickness (Journal Plot)", 0.5, 5.0, 1.5, 0.5)
 legend_pos = st.sidebar.selectbox("Legend Position", ["lower right", "upper right", "upper left", "lower left", "best", "outside"], index=0)
 
 auto_scale = st.sidebar.checkbox("Enable Auto-Scale", value=True)
 if not auto_scale:
-    custom_x_max = st.sidebar.number_input("Manual X Max (Strain %)", value=100.0)
+    custom_x_max = st.sidebar.number_input("Manual X Max (Strain %)", value=10.0)
     custom_y_max = st.sidebar.number_input("Manual Y Max (Stress MPa)", value=50.0)
 
 def clean_label(name):
@@ -150,7 +150,7 @@ if uploaded_files:
         b1, b2, b3, b4 = st.columns([2, 2, 2, 1])
         bulk_range = b1.slider("Global Modulus Range (%)", 0.0, 20.0, (0.2, 1.0), key="bulk_slider")
         bulk_method = b2.selectbox("Global Yield Method", ["Offset Method", "Departure from Linearity"], key="bulk_method")
-        bulk_val = b3.slider("Global Sensitivity/Offset (%)", 0.0, 45.0, 0.2, 0.05, key="bulk_val")
+        bulk_val = b3.slider("Global Sensitivity/Offset (%)", 0.0, 2.0, 0.2, 0.05, key="bulk_val")
         if b4.button("Apply to All"):
             for file in uploaded_files:
                 if file: 
@@ -177,7 +177,6 @@ if uploaded_files:
         if "Digitized" in str(file.name):
             stress_all = df_clean[f_col].values
             strain_all = df_clean[d_col].values
-            disp_all = (strain_all / 100) * gauge_length
         else:
             disp_all = df_clean[d_col].values * u_scale
             stress_all = df_clean[f_col].values if (inst_stress_col and f_col == inst_stress_col) else (df_clean[f_col].values / area)
@@ -193,7 +192,7 @@ if uploaded_files:
             
             current_range = c1.slider("Modulus Fit Range (%)", 0.0, 20.0, (0.2, 1.0), key=f"range_{file.name}")
             yield_method = c2.selectbox("Yield Method", ["Offset Method", "Departure from Linearity"], key=f"meth_{file.name}")
-            yield_val = c3.slider("Sensitivity/Offset (%)", 0.0, 45.0, 0.2, 0.05, key=f"val_{file.name}")
+            yield_val = c3.slider("Sensitivity/Offset (%)", 0.0, 2.0, 0.2, 0.05, key=f"val_{file.name}")
             
             mask_e = (strain_raw >= current_range[0]) & (strain_raw <= current_range[1])
             
@@ -213,28 +212,24 @@ if uploaded_files:
                 fit_y = E_slope * fit_x + (0 if apply_zeroing else intercept_y)
                 modulus_fit_storage[custom_name] = (fit_x, fit_y)
 
-                # --- YIELD DETECTION LOGIC ---
                 if yield_method == "Offset Method":
                     offset_line = E_slope * (strain_plot - yield_val)
                     idx_yield = np.where(stress_plot < offset_line)[0]
-                else: # Departure from Linearity
+                else:
                     theoretical_stress = E_slope * strain_plot + (0 if apply_zeroing else intercept_y)
                     deviation = (theoretical_stress - stress_plot) / theoretical_stress
-                    idx_yield = np.where(deviation > (yield_val/10))[0] # sensitivity scaled
+                    idx_yield = np.where(deviation > (yield_val/10))[0]
 
                 if len(idx_yield) > 0:
-                    y_stress = round(stress_plot[idx_yield[0]], 2)
-                    y_strain = round(strain_plot[idx_yield[0]], 2)
-                    mat_class = "Ductile"
+                    y_stress, y_strain, mat_class = round(stress_plot[idx_yield[0]], 2), round(strain_plot[idx_yield[0]], 2), "Ductile"
                 else:
                     y_stress, y_strain, mat_class = "N/A", "N/A", "Brittle"
 
                 fig_mini = go.Figure()
                 fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color='#1f77b4')))
                 fig_mini.add_trace(go.Scatter(x=fit_x, y=fit_y, name="Modulus Fit", line=dict(dash='dot', color='#d62728')))
-                
                 if y_stress != "N/A":
-                    fig_mini.add_trace(go.Scatter(x=[y_strain], y=[y_stress], mode='markers', name='Yield Point', marker=dict(color='orange', size=12, symbol='circle-open-dot')))
+                    fig_mini.add_trace(go.Scatter(x=[y_strain], y=[y_stress], mode='markers', marker=dict(color='orange', size=10)))
 
                 fig_mini.update_layout(height=280, margin=dict(l=0, r=0, t=0, b=0), template="plotly_white", showlegend=False)
                 prev_col.plotly_chart(fig_mini, use_container_width=True)
@@ -258,31 +253,56 @@ if uploaded_files:
         st.divider()
         view_mode = st.radio("Select Visualization Mode", ["Interactive (Cursor Inspection)", "Static (High-Res Journal TIFF)"], horizontal=True)
 
-        distinct_20 = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+        distinct_20 = ['#000000', '#FF0000', '#0000FF', '#008000', '#A52A2A', '#800080', '#FF8C00', '#4B0082']
 
         if view_mode == "Interactive (Cursor Inspection)":
             fig_main = go.Figure()
             for i, (name, data) in enumerate(plot_data_storage.items()):
-                fig_main.add_trace(go.Scatter(x=data[0], y=data[1], name=name, mode='lines', line=dict(width=line_thickness, color=distinct_20[i % 10])))
-            
+                fig_main.add_trace(go.Scatter(x=data[0], y=data[1], name=name, mode='lines', line=dict(width=line_thickness, color=distinct_20[i % 8])))
             x_lim = res_df["Strain @ Peak [%]"].max() * 1.05 if auto_scale else custom_x_max
             y_lim = res_df["Stress @ Peak [MPa]"].max() * 1.1 if auto_scale else custom_y_max
             fig_main.update_layout(template="simple_white", xaxis=dict(title="Strain (%)", range=[0, x_lim]), yaxis=dict(title="Stress (MPa)", range=[0, y_lim]), height=650)
             st.plotly_chart(fig_main, use_container_width=True)
         else:
-            plt.rcParams.update({"font.family": "serif", "font.size": 12})
-            fig, ax = plt.subplots(figsize=(9, 7))
+            # --- JOURNAL GRADE MATPLOTLIB ---
+            plt.rcParams.update({
+                "font.family": "serif", "font.serif": ["Times New Roman"], "font.size": 12,
+                "axes.linewidth": 1.2, "xtick.direction": "in", "ytick.direction": "in",
+                "xtick.major.size": 6, "ytick.major.size": 6
+            })
+            fig, ax = plt.subplots(figsize=(7, 6), dpi=600)
+            
             for i, (name, data) in enumerate(plot_data_storage.items()):
-                ax.plot(data[0], data[1], label=name, color=distinct_20[i % 10], lw=line_thickness)
-            ax.set_xlabel('Strain (%)'); ax.set_ylabel('Stress (MPa)')
-            ax.legend(loc=legend_pos); st.pyplot(fig)
+                ax.plot(data[0], data[1], label=name, color=distinct_20[i % 8], lw=line_thickness)
+            
+            # Critical: Enforce 0,0 Start and remove padding
+            ax.set_xbound(lower=0); ax.set_ybound(lower=0)
+            if not auto_scale:
+                ax.set_xlim(0, custom_x_max); ax.set_ylim(0, custom_y_max)
+            else:
+                ax.set_xlim(left=0); ax.set_ylim(bottom=0)
+            
+            ax.margins(x=0, y=0) # Removes the gap between axis and data
+            ax.set_xlabel('Strain (%)', fontweight='bold', labelpad=10)
+            ax.set_ylabel('Stress (MPa)', fontweight='bold', labelpad=10)
+            ax.spines['top'].set_visible(True); ax.spines['right'].set_visible(True)
+            
+            if legend_pos == "outside": ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', frameon=False)
+            else: ax.legend(loc=legend_pos, frameon=False)
+            
+            plt.tight_layout()
+            st.pyplot(fig)
+            
+            # Export high-res TIFF
+            tiff_buf = io.BytesIO()
+            fig.savefig(tiff_buf, format='tiff', dpi=600, compression='tiff_lzw')
+            st.download_button("📥 Download 600DPI TIFF (Journal Ready)", data=tiff_buf.getvalue(), file_name="Tensile_Plot_HighRes.tiff", mime="image/tiff")
 
-        # --- 10. Batch Comparison ---
+        # --- 10. Comparison & 11. Stats (Rest of code remains unchanged) ---
         st.divider()
         st.subheader("⚖️ Batch Property Comparison")
         col_comp1, col_comp2 = st.columns([1, 2])
         control_sample = col_comp1.selectbox("Select Control Sample", res_df["Sample"].tolist())
-        
         if control_sample:
             baseline = res_df[res_df["Sample"] == control_sample].iloc[0]
             comp_df = res_df.copy()
@@ -290,17 +310,13 @@ if uploaded_files:
                 comp_df[f"{col.split()[0]} Δ (%)"] = ((pd.to_numeric(comp_df[col], errors='coerce') - float(baseline[base])) / float(baseline[base])) * 100
             st.dataframe(comp_df.style.format("{:+.1f}%", subset=[c for c in comp_df.columns if "Δ" in c]).background_gradient(cmap="RdYlGn", subset=[c for c in comp_df.columns if "Δ" in c]), hide_index=True)
 
-        # --- 11. Final Statistics ---
-        st.divider()
         st.subheader(f"📊 Batch Summary Statistics (n={len(res_df)})")
         numeric_cols = ["Modulus (E) [MPa]", "Yield Stress [MPa]", "Yield Strain [%]", "Stress @ Peak [MPa]", "Strain @ Peak [%]", "Toughness [MJ/m³]"]
         st.table(res_df[numeric_cols].apply(pd.to_numeric, errors='coerce').agg(['mean', 'std']).T.style.format("{:.2f}"))
 
-        # --- 12. Complete Records ---
         st.subheader("📋 Complete Individual Test Records")
         st.dataframe(res_df, hide_index=True, use_container_width=True)
 
-        # --- 13. Export Module ---
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             res_df.to_excel(writer, sheet_name='Samples', index=False)
