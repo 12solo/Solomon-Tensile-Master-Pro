@@ -344,17 +344,23 @@ if uploaded_files:
             stats_df.to_excel(writer, sheet_name='Stats')
         st.download_button(label="📥 Download Full Excel Report", data=output.getvalue(), file_name=f"{project_name}_Full_Report.xlsx")
 
-      # --- 10. Batch Comparison (FIXED KEYERROR) ---
+ # --- 10. Batch Comparison (FIXED DUPLICATE ID & KEYERROR) ---
         st.divider()
         st.subheader("⚖️ Batch Property Comparison")
         col_comp1, col_comp2 = st.columns([1, 2])
-        control_sample = col_comp1.selectbox("Select Control Sample (Baseline)", res_df["Sample"].tolist())
+        
+        # Added key="baseline_selector" to prevent DuplicateElementId error
+        control_sample = col_comp1.selectbox(
+            "Select Control Sample (Baseline)", 
+            res_df["Sample"].tolist(),
+            key="baseline_selector" 
+        )
         
         if control_sample:
             baseline = res_df[res_df["Sample"] == control_sample].iloc[0]
             comp_df = res_df.copy()
             
-            # Map the exact keys to match the display list below
+            # Explicit Delta Calculations with numeric safety
             comp_df["Modulus Δ (%)"] = pd.to_numeric(comp_df["Modulus (E) [MPa]"], errors='coerce')
             b_mod = pd.to_numeric(baseline["Modulus (E) [MPa]"], errors='coerce')
             comp_df["Modulus Δ (%)"] = ((comp_df["Modulus Δ (%)"] - b_mod) / b_mod) * 100
@@ -374,6 +380,7 @@ if uploaded_files:
                 comp_df[display_cols].style.format("{:+.1f}%", subset=delta_cols)
                 .background_gradient(subset=delta_cols, cmap="RdYlGn"),
                 hide_index=True, use_container_width=True
+            )
             )
 
         # --- 11. Final Statistics ---
