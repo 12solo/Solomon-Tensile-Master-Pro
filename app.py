@@ -381,7 +381,6 @@ if uploaded_files:
                 .background_gradient(subset=delta_cols, cmap="RdYlGn"),
                 hide_index=True, use_container_width=True
             )
-            )
 
         # --- 11. Final Statistics ---
         st.divider()
