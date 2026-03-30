@@ -193,7 +193,7 @@ if uploaded_files:
             
             current_range = c1.slider("Modulus Fit Range (%)", 0.0, 20.0, (0.2, 1.0), key=f"range_{file.name}")
             yield_method = c2.selectbox("Yield Method", ["Offset Method", "Departure from Linearity"], key=f"meth_{file.name}")
-            yield_val = c3.slider("Sensitivity/Offset (%)", 0.0, 2.0, 0.2, 0.05, key=f"val_{file.name}")
+            yield_val = c3.slider("Sensitivity/Offset (%)", 0.0, 45.0, 0.2, 0.05, key=f"val_{file.name}")
             
             mask_e = (strain_raw >= current_range[0]) & (strain_raw <= current_range[1])
             
