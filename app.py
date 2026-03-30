@@ -229,18 +229,12 @@ if uploaded_files:
                 else:
                     y_stress, y_strain, mat_class = "N/A", "N/A", "Brittle"
 
-                # PREVIEW INDICATOR (Keep this for calibration)
                 fig_mini = go.Figure()
                 fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color='#1f77b4')))
                 fig_mini.add_trace(go.Scatter(x=fit_x, y=fit_y, name="Modulus Fit", line=dict(dash='dot', color='#d62728')))
                 
                 if y_stress != "N/A":
-                    fig_mini.add_trace(go.Scatter(
-                        x=[y_strain], y=[y_stress], 
-                        mode='markers', 
-                        name='Yield Point', 
-                        marker=dict(color='orange', size=12, symbol='circle-open-dot')
-                    ))
+                    fig_mini.add_trace(go.Scatter(x=[y_strain], y=[y_stress], mode='markers', marker=dict(color='orange', size=12, symbol='circle-open-dot')))
 
                 fig_mini.update_layout(height=280, margin=dict(l=0, r=0, t=0, b=0), template="plotly_white", showlegend=False, xaxis=dict(range=[0, None]), yaxis=dict(range=[0, None]))
                 prev_col.plotly_chart(fig_mini, use_container_width=True)
@@ -266,81 +260,94 @@ if uploaded_files:
 
         distinct_20 = ['#000000', '#FF0000', '#0000FF', '#008000', '#A52A2A', '#800080', '#FF8C00', '#4B0082']
 
+        # Construct common Matplotlib plot for High-Res
+        plt.rcParams.update({
+            "font.family": "serif", "font.serif": ["Times New Roman"], "font.size": 12,
+            "axes.linewidth": 1.5, "xtick.direction": "in", "ytick.direction": "in",
+            "xtick.major.size": 6, "ytick.major.size": 6, "xtick.top": True, "ytick.right": True
+        })
+        fig_journal, ax_journal = plt.subplots(figsize=(7, 6), dpi=600)
+        for i, (name, data) in enumerate(plot_data_storage.items()):
+            ax_journal.plot(data[0], data[1], label=name, color=distinct_20[i % 8], lw=line_thickness)
+        
+        ax_journal.set_xbound(lower=0); ax_journal.set_ybound(lower=0)
+        if not auto_scale:
+            ax_journal.set_xlim(0, custom_x_max); ax_journal.set_ylim(0, custom_y_max)
+        else:
+            ax_journal.set_xlim(0, res_df["Strain @ Peak [%]"].max() * 1.05)
+            ax_journal.set_ylim(0, res_df["Stress @ Peak [MPa]"].max() * 1.1)
+        
+        ax_journal.set_xlabel('Strain (%)', fontweight='bold', labelpad=10)
+        ax_journal.set_ylabel('Stress (MPa)', fontweight='bold', labelpad=10)
+        ax_journal.legend(loc=legend_pos, frameon=False)
+        plt.tight_layout()
+
         if view_mode == "Interactive (Cursor Inspection)":
             fig_main = go.Figure()
             for i, (name, data) in enumerate(plot_data_storage.items()):
                 fig_main.add_trace(go.Scatter(x=data[0], y=data[1], name=name, mode='lines', line=dict(width=line_thickness, color=distinct_20[i % 8])))
-            
             x_lim = res_df["Strain @ Peak [%]"].max() * 1.05 if auto_scale else custom_x_max
             y_lim = res_df["Stress @ Peak [MPa]"].max() * 1.1 if auto_scale else custom_y_max
             fig_main.update_layout(template="simple_white", xaxis=dict(title="Strain (%)", range=[0, x_lim]), yaxis=dict(title="Stress (MPa)", range=[0, y_lim]), height=650)
             st.plotly_chart(fig_main, use_container_width=True)
         else:
-            # --- JOURNAL GRADE MATPLOTLIB ---
-            plt.rcParams.update({
-                "font.family": "serif", "font.serif": ["Times New Roman"], "font.size": 12,
-                "axes.linewidth": 1.5, "xtick.direction": "in", "ytick.direction": "in",
-                "xtick.major.size": 6, "ytick.major.size": 6, "xtick.top": True, "ytick.right": True
-            })
-            fig, ax = plt.subplots(figsize=(7, 6), dpi=600)
+            st.pyplot(fig_journal)
             
-            for i, (name, data) in enumerate(plot_data_storage.items()):
-                ax.plot(data[0], data[1], label=name, color=distinct_20[i % 8], lw=line_thickness)
-            
-            ax.set_xbound(lower=0); ax.set_ybound(lower=0)
-            if not auto_scale:
-                ax.set_xlim(0, custom_x_max); ax.set_ylim(0, custom_y_max)
-            else:
-                ax.set_xlim(0, res_df["Strain @ Peak [%]"].max() * 1.05)
-                ax.set_ylim(0, res_df["Stress @ Peak [MPa]"].max() * 1.1)
-            
-            ax.xaxis.set_ticks_position('both')
-            ax.yaxis.set_ticks_position('both')
-            for spine in ax.spines.values():
-                spine.set_linewidth(1.5)
-                spine.set_visible(True)
+            # --- TIFF Export ---
+            img_buf = io.BytesIO()
+            fig_journal.savefig(img_buf, format='png', dpi=600, bbox_inches='tight')
+            img_buf.seek(0)
+            pil_img = Image.open(img_buf)
+            tiff_buf = io.BytesIO()
+            pil_img.save(tiff_buf, format='TIFF', compression='tiff_lzw', dpi=(600, 600))
+            st.download_button("📥 Download 600DPI TIFF (Journal Ready)", data=tiff_buf.getvalue(), file_name="HighRes_Journal_Plot.tiff", mime="image/tiff")
 
-            ax.set_xlabel('Strain (%)', fontweight='bold', labelpad=10)
-            ax.set_ylabel('Stress (MPa)', fontweight='bold', labelpad=10)
-            ax.set_axisbelow(True)
-            
-            if legend_pos == "outside": ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', frameon=False)
-            else: ax.legend(loc=legend_pos, frameon=False)
-            
-            plt.tight_layout()
-            st.pyplot(fig)
-            
-            try:
-                img_buf = io.BytesIO()
-                fig.savefig(img_buf, format='png', dpi=600, bbox_inches='tight')
-                img_buf.seek(0)
-                pil_img = Image.open(img_buf)
-                tiff_buf = io.BytesIO()
-                pil_img.save(tiff_buf, format='TIFF', compression='tiff_lzw', dpi=(600, 600))
-                st.download_button("📥 Download 600DPI TIFF (Journal Ready)", data=tiff_buf.getvalue(), file_name="HighRes_Journal_Plot.tiff", mime="image/tiff")
-            except:
-                st.error("TIFF conversion failed.")
-
-        # Batch property comparison and tables follow...
         st.divider()
         st.subheader("⚖️ Batch Property Comparison")
         col_comp1, col_comp2 = st.columns([1, 2])
         control_sample = col_comp1.selectbox("Select Control Sample", res_df["Sample"].tolist())
+        comp_df = res_df.copy()
         if control_sample:
             baseline = res_df[res_df["Sample"] == control_sample].iloc[0]
-            comp_df = res_df.copy()
             for col, base in [("Modulus (E) [MPa]", "Modulus (E) [MPa]"), ("Stress @ Peak [MPa]", "Stress @ Peak [MPa]"), ("Toughness [MJ/m³]", "Toughness [MJ/m³]")]:
                 comp_df[f"{col.split()[0]} Δ (%)"] = ((pd.to_numeric(comp_df[col], errors='coerce') - float(baseline[base])) / float(baseline[base])) * 100
             st.dataframe(comp_df.style.format("{:+.1f}%", subset=[c for c in comp_df.columns if "Δ" in c]).background_gradient(cmap="RdYlGn", subset=[c for c in comp_df.columns if "Δ" in c]), hide_index=True)
 
         st.subheader(f"📊 Batch Summary Statistics (n={len(res_df)})")
         numeric_cols = ["Modulus (E) [MPa]", "Yield Stress [MPa]", "Yield Strain [%]", "Stress @ Peak [MPa]", "Strain @ Peak [%]", "Toughness [MJ/m³]"]
-        st.table(res_df[numeric_cols].apply(pd.to_numeric, errors='coerce').agg(['mean', 'std']).T.style.format("{:.2f}"))
+        stats_df = res_df[numeric_cols].apply(pd.to_numeric, errors='coerce').agg(['mean', 'std']).T
+        st.table(stats_df.style.format("{:.2f}"))
 
         st.subheader("📋 Complete Individual Test Records")
         st.dataframe(res_df, hide_index=True, use_container_width=True)
 
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            res_df.to_excel(writer, sheet_name='Samples', index=False)
-        st.download_button(label="📥 Download Full Excel Report", data=output.getvalue(), file_name=f"{project_name}_Report.xlsx")
+        # --- 13. COMPREHENSIVE EXPORT MODULE ---
+        st.divider()
+        excel_out = io.BytesIO()
+        with pd.ExcelWriter(excel_out, engine='xlsxwriter') as writer:
+            # 1. Individual Test Records
+            res_df.to_excel(writer, sheet_name='Individual_Results', index=False)
+            
+            # 2. Batch Summary Stats
+            stats_df.to_excel(writer, sheet_name='Batch_Statistics')
+            
+            # 3. Comparison Delta Analysis
+            if 'comp_df' in locals():
+                comp_df.to_excel(writer, sheet_name='Comparative_Analysis', index=False)
+            
+            # 4. Final Plot Embedding
+            plot_sheet = writer.book.add_worksheet('Final_Visual_Report')
+            plot_sheet.write('A1', f'Project: {project_name}')
+            plot_sheet.write('A2', 'Note: This image is exported at 600 DPI for publication quality.')
+            
+            img_excel = io.BytesIO()
+            fig_journal.savefig(img_excel, format='png', dpi=300, bbox_inches='tight') # Reduced DPI for Excel to save space
+            img_excel.seek(0)
+            plot_sheet.insert_image('A4', 'final_plot.png', {'image_data': img_excel, 'x_scale': 0.8, 'y_scale': 0.8})
+
+        st.download_button(
+            label="📥 Download Full Research Report (Excel + Plot)",
+            data=excel_out.getvalue(),
+            file_name=f"{project_name}_Full_Analysis.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
