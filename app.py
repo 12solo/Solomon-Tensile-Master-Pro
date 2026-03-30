@@ -237,12 +237,13 @@ if uploaded_files:
             else:
                 ctrl_col.error("Insufficient points.")
 
-    # --- 9. Final Reports & Visualizations ---
+   # --- 9. Final Reports & Visualizations ---
     if all_results:
         res_df = pd.DataFrame(all_results)
         st.divider()
         view_mode = st.radio("Select Visualization Mode", ["Interactive (Cursor Inspection)", "Static (High-Res Journal TIFF)"], horizontal=True)
 
+        # --- 20 DISTINCT COLORS ---
         distinct_20 = [
             '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
             '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
@@ -288,6 +289,60 @@ if uploaded_files:
             if legend_pos == "outside": ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', frameon=False, fontsize=9)
             else: ax.legend(loc=legend_pos, frameon=False, fontsize=9)
             st.pyplot(fig)
+
+        # --- 10. Batch Comparison (FIXED KEYERROR) ---
+        st.divider()
+        st.subheader("⚖️ Batch Property Comparison")
+        col_comp1, col_comp2 = st.columns([1, 2])
+        control_sample = col_comp1.selectbox("Select Control Sample (Baseline)", res_df["Sample"].tolist())
+        
+        if control_sample:
+            baseline = res_df[res_df["Sample"] == control_sample].iloc[0]
+            comp_df = res_df.copy()
+            
+            # Explicit Delta Calculations
+            comp_df["Modulus Δ (%)"] = pd.to_numeric(comp_df["Modulus (E) [MPa]"], errors='coerce')
+            b_mod = pd.to_numeric(baseline["Modulus (E) [MPa]"], errors='coerce')
+            comp_df["Modulus Δ (%)"] = ((comp_df["Modulus Δ (%)"] - b_mod) / b_mod) * 100
+
+            comp_df["Strength Δ (%)"] = pd.to_numeric(comp_df["Stress @ Peak [MPa]"], errors='coerce')
+            b_str = pd.to_numeric(baseline["Stress @ Peak [MPa]"], errors='coerce')
+            comp_df["Strength Δ (%)"] = ((comp_df["Strength Δ (%)"] - b_str) / b_str) * 100
+
+            comp_df["Toughness Δ (%)"] = pd.to_numeric(comp_df["Toughness [MJ/m³]"], errors='coerce')
+            b_tgh = pd.to_numeric(baseline["Toughness [MJ/m³]"], errors='coerce')
+            comp_df["Toughness Δ (%)"] = ((comp_df["Toughness Δ (%)"] - b_tgh) / b_tgh) * 100
+            
+            delta_cols = ["Modulus Δ (%)", "Strength Δ (%)", "Toughness Δ (%)"]
+            display_cols = ["Sample", "Class", "Modulus (E) [MPa]", "Modulus Δ (%)", "Stress @ Peak [MPa]", "Strength Δ (%)", "Toughness [MJ/m³]", "Toughness Δ (%)"]
+            
+            st.dataframe(
+                comp_df[display_cols].style.format("{:+.1f}%", subset=delta_cols)
+                .background_gradient(subset=delta_cols, cmap="RdYlGn"),
+                hide_index=True, use_container_width=True
+            )
+
+        # --- 11. Final Statistics ---
+        st.divider()
+        st.subheader(f"📊 Batch Summary Statistics (n={len(res_df)})")
+        numeric_res = res_df.apply(pd.to_numeric, errors='coerce').drop(columns=['Sample', 'Class'], errors='ignore')
+        stats_df = numeric_res.agg(['mean', 'std', 'count']).T
+        st.table(stats_df.style.format("{:.2f}"))
+
+        # --- 12. Individual Results Table (BROUGHT BACK) ---
+        st.subheader("📋 Complete Individual Test Records")
+        st.dataframe(
+            res_df[["Sample", "Class", "Modulus (E) [MPa]", "Yield Stress [MPa]", "Yield Strain [%]", "Stress @ Peak [MPa]", "Strain @ Peak [%]", "Work Done [J]", "Toughness [MJ/m³]"]],
+            hide_index=True, 
+            use_container_width=True
+        )
+        
+        # Excel Export
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            res_df.to_excel(writer, sheet_name='Samples', index=False)
+            stats_df.to_excel(writer, sheet_name='Stats')
+        st.download_button(label="📥 Download Full Excel Report", data=output.getvalue(), file_name=f"{project_name}_Full_Report.xlsx")
 
       # --- 10. Batch Comparison (FIXED KEYERROR) ---
         st.divider()
