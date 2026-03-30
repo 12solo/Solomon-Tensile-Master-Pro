@@ -79,7 +79,6 @@ def image_digitizer_ui():
         img = Image.open(digitizer_file)
         buffered = io.BytesIO()
         img.save(buffered, format="PNG")
-        img_str = base64.b64encode(buffered.getvalue()).decode()
         
         c1, c2 = st.columns([2, 1])
         with c2:
@@ -205,8 +204,8 @@ if uploaded_files:
                 modulus_fit_storage[custom_name] = (fit_x, fit_y)
 
                 fig_mini = go.Figure()
-                fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color='#316395')))
-                fig_mini.add_trace(go.Scatter(x=fit_x, y=fit_y, name="Fit", line=dict(dash='dot', color='#B82E2E')))
+                fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color='#1f77b4')))
+                fig_mini.add_trace(go.Scatter(x=fit_x, y=fit_y, name="Fit", line=dict(dash='dot', color='#d62728')))
                 fig_mini.update_layout(height=250, margin=dict(l=0, r=0, t=0, b=0), template="plotly_white", showlegend=False)
                 prev_col.plotly_chart(fig_mini, use_container_width=True)
 
@@ -232,12 +231,12 @@ if uploaded_files:
         st.divider()
         view_mode = st.radio("Select Visualization Mode", ["Interactive (Cursor Inspection)", "Static (High-Res Journal TIFF)"], horizontal=True)
 
-        # --- EXTENDED 20-COLOR DISTINCT PALETTE ---
+        # --- 20 DISTINCT COLORS ---
         distinct_20 = [
             '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
             '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-            '#3366cc', '#dc3912', '#ff9900', '#109618', '#990099', 
-            '#0099c6', '#dd4477', '#66aa00', '#b82e2e', '#316395'
+            '#aec7e8', '#ffbb78', '#98df8a', '#ff9896', '#c5b0d5', 
+            '#c49c94', '#f7b6d2', '#c7c7c7', '#dbdb8d', '#9edae5'
         ]
 
         if view_mode == "Interactive (Cursor Inspection)":
@@ -249,9 +248,6 @@ if uploaded_files:
                     mode='lines', line=dict(width=line_thickness, color=color),
                     hovertemplate='<b>%{fullData.name}</b><br>Strain: %{x:.2f}%<br>Stress: %{y:.2f} MPa<extra></extra>'
                 ))
-                if len(plot_data_storage) == 1:
-                    fx, fy = modulus_fit_storage[name]
-                    fig_main.add_trace(go.Scatter(x=fx, y=fy, name="Modulus Fit", line=dict(dash='dot', color='#333333', width=1.5)))
             
             x_lim = res_df["Strain @ Peak [%]"].max() * 1.05 if auto_scale else custom_x_max
             y_lim = res_df["Stress @ Peak [MPa]"].max() * 1.1 if auto_scale else custom_y_max
@@ -266,13 +262,9 @@ if uploaded_files:
         else:
             plt.rcParams.update({"font.family": "serif", "font.serif": ["Times New Roman"], "font.size": 12, "axes.linewidth": 1.5, "xtick.direction": "in", "ytick.direction": "in"})
             fig, ax = plt.subplots(figsize=(9, 7))
-            
             for i, (name, data) in enumerate(plot_data_storage.items()):
                 color = distinct_20[i % 20]
                 ax.plot(data[0], data[1], label=name, color=color, linestyle='-', lw=line_thickness)
-                if len(plot_data_storage) == 1:
-                    fx, fy = modulus_fit_storage[name]
-                    ax.plot(fx, fy, color='black', linestyle='--', lw=1.2, label='Modulus Fit')
             
             if auto_scale:
                 ax.set_xlim(0, res_df["Strain @ Peak [%]"].max() * 1.05)
@@ -282,33 +274,43 @@ if uploaded_files:
 
             ax.set_xlabel('Strain (%)', fontweight='bold'); ax.set_ylabel('Stress (MPa)', fontweight='bold')
             ax.spines['top'].set_visible(True); ax.spines['right'].set_visible(True)
-            
-            if legend_pos == "outside": 
-                ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', frameon=False, fontsize=9)
-            else: 
-                ax.legend(loc=legend_pos, frameon=False, fontsize=9)
-                
+            if legend_pos == "outside": ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', frameon=False, fontsize=9)
+            else: ax.legend(loc=legend_pos, frameon=False, fontsize=9)
             st.pyplot(fig)
-            img_buffer = io.BytesIO()
-            fig.savefig(img_buffer, format="tiff", dpi=300, bbox_inches='tight')
-            st.download_button(label="🖼️ Download Journal TIFF (300 DPI)", data=img_buffer.getvalue(), file_name=f"{project_name}_Analysis.tiff")
 
-        # --- 10. Batch Comparison ---
+        # --- 10. Batch Comparison (FIXED KEYERROR) ---
         st.divider()
         st.subheader("⚖️ Batch Property Comparison")
         col_comp1, col_comp2 = st.columns([1, 2])
         control_sample = col_comp1.selectbox("Select Control Sample (Baseline)", res_df["Sample"].tolist())
+        
         if control_sample:
             baseline = res_df[res_df["Sample"] == control_sample].iloc[0]
             comp_df = res_df.copy()
-            for col in ["Modulus (E) [MPa]", "Stress @ Peak [MPa]", "Toughness [MJ/m³]"]:
-                prop = col.split(" ")[0]
-                comp_df[f"{prop} Δ (%)"] = ((comp_df[col] - baseline[col]) / baseline[col]) * 100
-            st.dataframe(comp_df[["Sample", "Modulus (E) [MPa]", "Modulus Δ (%)", "Stress @ Peak [MPa]", "Strength Δ (%)", "Toughness [MJ/m³]", "Toughness Δ (%)"]].style.format("{:+.1f}%", subset=[c for c in comp_df.columns if "Δ" in c]).background_gradient(subset=[c for c in comp_df.columns if "Δ" in c], cmap="RdYlGn"), hide_index=True, use_container_width=True)
+            
+            # Map the exact keys to avoid KeyError
+            comp_df["Modulus Δ (%)"] = ((comp_df["Modulus (E) [MPa]"] - baseline["Modulus (E) [MPa]"]) / baseline["Modulus (E) [MPa]"]) * 100
+            comp_df["Strength Δ (%)"] = ((comp_df["Stress @ Peak [MPa]"] - baseline["Stress @ Peak [MPa]"]) / baseline["Stress @ Peak [MPa]"]) * 100
+            comp_df["Toughness Δ (%)"] = ((comp_df["Toughness [MJ/m³]"] - baseline["Toughness [MJ/m³]"]) / baseline["Toughness [MJ/m³]"]) * 100
+            
+            delta_cols = ["Modulus Δ (%)", "Strength Δ (%)", "Toughness Δ (%)"]
+            display_cols = ["Sample", "Modulus (E) [MPa]", "Modulus Δ (%)", "Stress @ Peak [MPa]", "Strength Δ (%)", "Toughness [MJ/m³]", "Toughness Δ (%)"]
+            
+            st.dataframe(
+                comp_df[display_cols].style.format("{:+.1f}%", subset=delta_cols)
+                .background_gradient(subset=delta_cols, cmap="RdYlGn"),
+                hide_index=True, use_container_width=True
+            )
 
-        # --- 11. Statistics & Reports ---
+        # --- 11. Final Statistics ---
         st.divider()
         st.subheader(f"📊 Batch Summary Statistics (n={len(res_df)})")
         stats_df = res_df.drop(columns='Sample').agg(['mean', 'std', 'count']).T
         st.table(stats_df.style.format("{:.2f}"))
-        st.download_button(label="📥 Download Full Excel Report", data=io.BytesIO().getvalue(), file_name=f"{project_name}_Full_Report.xlsx")
+        
+        # Excel Export
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            res_df.to_excel(writer, sheet_name='Samples', index=False)
+            stats_df.to_excel(writer, sheet_name='Stats')
+        st.download_button(label="📥 Download Full Excel Report", data=output.getvalue(), file_name=f"{project_name}_Full_Report.xlsx")
