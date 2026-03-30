@@ -92,9 +92,9 @@ uploaded_files = st.file_uploader("Upload Samples", type=['csv', 'xlsx', 'txt'],
 if uploaded_files:
     all_results = []
     plot_data_storage = {} 
-    yield_point_storage = {}
+    peak_point_storage = {}
 
-    st.subheader("🛠️ Sample Validation & Modulus Fit")
+    st.subheader("🛠️ Sample Validation & Automatic Peak Detection")
 
     for file in uploaded_files:
         if file is None: continue
@@ -102,27 +102,24 @@ if uploaded_files:
         if df is None or df.empty: continue
         
         cols = df.columns.tolist()
-        # Auto-detect indices
-        f_idx = 0
-        d_idx = 1 if len(cols) > 1 else 0
-
-        f_col = st.sidebar.selectbox(f"Force/Stress ({file.name})", cols, index=f_idx, key=f"f_{file.name}")
-        d_col = st.sidebar.selectbox(f"Disp/Strain ({file.name})", cols, index=d_idx, key=f"d_{file.name}")
+        f_col = st.sidebar.selectbox(f"Force/Stress ({file.name})", cols, index=0, key=f"f_{file.name}")
+        d_col = st.sidebar.selectbox(f"Disp/Strain ({file.name})", cols, index=1 if len(cols) > 1 else 0, key=f"d_{file.name}")
         
         df_clean = df[[f_col, d_col]].apply(pd.to_numeric, errors='coerce').dropna()
         disp_all = df_clean[d_col].values * u_scale
         stress_all = df_clean[f_col].values / area
         strain_all = (disp_all / gauge_length) * 100
 
+        # --- AUTO-DETECTION OF PEAK STRESS ---
         peak_idx = np.argmax(stress_all)
         stress_raw = stress_all[:peak_idx + 1]
         strain_raw = strain_all[:peak_idx + 1]
 
-        with st.expander(f"Analysis & Modulus Fit: {file.name}", expanded=False):
+        with st.expander(f"Analysis & Peak Check: {file.name}", expanded=False):
             custom_name = st.text_input("Display Name", value=clean_label(file.name), key=f"name_{file.name}")
             ctrl_col, prev_col = st.columns([1, 2])
             
-            fit_range = ctrl_col.slider("Modulus Fit Range (%)", 0.0, 10.0, (0.2, 1.0), key=f"range_{file.name}")
+            fit_range = ctrl_col.slider("Modulus Range (%)", 0.0, 10.0, (0.2, 1.0), key=f"range_{file.name}")
             mask_e = (strain_raw >= fit_range[0]) & (strain_raw <= fit_range[1])
             
             if np.sum(mask_e) >= 3:
@@ -137,29 +134,29 @@ if uploaded_files:
                     strain_plot, stress_plot = strain_raw, stress_raw
 
                 plot_data_storage[custom_name] = (strain_plot, stress_plot)
+                
+                # Capture Peak point for storage
+                p_stress = round(stress_plot[-1], 2)
+                p_strain = round(strain_plot[-1], 2)
+                peak_point_storage[custom_name] = (p_strain, p_stress)
 
-                # --- YIELD SEARCH (0.2% Offset Method) ---
+                # Yield Search (Background)
                 offset_line = E_slope * (strain_plot - 0.2)
                 idx_yield = np.where(stress_plot < offset_line)[0]
-                
                 if len(idx_yield) > 0:
-                    y_stress, y_strain = round(stress_plot[idx_yield[0]], 2), round(strain_plot[idx_yield[0]], 2)
-                    mat_class = "Ductile"
-                    yield_point_storage[custom_name] = (y_strain, y_stress)
+                    y_stress, y_strain, mat_class = round(stress_plot[idx_yield[0]], 2), round(strain_plot[idx_yield[0]], 2), "Ductile"
                 else:
-                    y_stress, y_strain = "N/A", "N/A"
-                    mat_class = "Brittle"
-                    yield_point_storage[custom_name] = (None, None)
+                    y_stress, y_strain, mat_class = "N/A", "N/A", "Brittle"
 
-                # Individual Preview with Modulus Fit (Red dotted line)
+                # Individual Preview (Shows Modulus Fit & Peak Star)
                 fig_mini = go.Figure()
                 fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color='#1f77b4')))
-                
                 fx = np.linspace(0, fit_range[1]*2, 20)
                 fy = E_slope * fx + (0 if apply_zeroing else intercept_y)
                 fig_mini.add_trace(go.Scatter(x=fx, y=fy, name="Modulus Fit", line=dict(dash='dot', color='#d62728')))
+                fig_mini.add_trace(go.Scatter(x=[p_strain], y=[p_stress], mode='markers', marker=dict(symbol='star', size=12, color='gold', line=dict(width=1, color='black')), name="Peak Stress"))
                 
-                fig_mini.update_layout(height=250, margin=dict(l=0, r=0, t=30, b=0), template="plotly_white", title="Individual Fit Check")
+                fig_mini.update_layout(height=250, margin=dict(l=0, r=0, t=30, b=0), template="plotly_white")
                 prev_col.plotly_chart(fig_mini, use_container_width=True)
 
                 try: work_j = np.trapezoid(stress_plot * area, (strain_plot/100 * gauge_length) / 1000.0)
@@ -169,13 +166,11 @@ if uploaded_files:
                     "Sample": custom_name, "Class": mat_class,
                     "Modulus (E) [MPa]": round(E_slope * 100, 1),
                     "Yield Stress [MPa]": y_stress, "Yield Strain [%]": y_strain,
-                    "Stress @ Peak [MPa]": round(stress_plot[-1], 2), "Strain @ Peak [%]": round(strain_plot[-1], 2),
+                    "Stress @ Peak [MPa]": p_stress, "Strain @ Peak [%]": p_strain,
                     "Work Done [J]": round(work_j, 4), "Toughness [MJ/m³]": round((work_j / (area * gauge_length * 1e-9)) / 1e6, 3)
                 })
-            else:
-                ctrl_col.error("Insufficient points for Modulus fit.")
 
-    # --- 7. Final Visualizations & Reports ---
+    # --- 7. Final Visualizations (Clean Summary - No Yield Dots) ---
     if all_results:
         res_df = pd.DataFrame(all_results)
         st.divider()
@@ -188,14 +183,13 @@ if uploaded_files:
             for i, (name, data) in enumerate(plot_data_storage.items()):
                 color = distinct_20[i % 20]
                 fig_main.add_trace(go.Scatter(x=data[0], y=data[1], name=name, mode='lines', line=dict(width=line_thickness, color=color)))
-                # Add Yield Point Marker
-                ys, yst = yield_point_storage[name]
-                if ys:
-                    fig_main.add_trace(go.Scatter(x=[ys], y=[yst], mode='markers', marker=dict(color='#2ca02c', size=8, line=dict(width=1, color='black')), showlegend=False))
+                # Auto-detected Peak marker on Summary Plot
+                ps, pst = peak_point_storage[name]
+                fig_main.add_trace(go.Scatter(x=[ps], y=[pst], mode='markers', marker=dict(symbol='star', size=10, color='gold', line=dict(width=1, color='black')), showlegend=False))
             
-            x_limit = res_df["Strain @ Peak [%]"].max() * 1.05 if auto_scale else custom_x_max
-            y_limit = res_df["Stress @ Peak [MPa]"].max() * 1.1 if auto_scale else custom_y_max
-            fig_main.update_layout(template="simple_white", xaxis=dict(title="Strain (%)", range=[0, x_limit]), yaxis=dict(title="Stress (MPa)", range=[0, y_limit]), height=650)
+            x_lim = res_df["Strain @ Peak [%]"].max() * 1.05 if auto_scale else custom_x_max
+            y_lim = res_df["Stress @ Peak [MPa]"].max() * 1.1 if auto_scale else custom_y_max
+            fig_main.update_layout(template="simple_white", xaxis=dict(title="Strain (%)", range=[0, x_lim]), yaxis=dict(title="Stress (MPa)", range=[0, y_lim]), height=650)
             st.plotly_chart(fig_main, use_container_width=True)
 
         else:
@@ -204,8 +198,9 @@ if uploaded_files:
             for i, (name, data) in enumerate(plot_data_storage.items()):
                 color = distinct_20[i % 20]
                 ax.plot(data[0], data[1], label=name, color=color, linestyle='-', lw=line_thickness)
-                ys, yst = yield_point_storage[name]
-                if ys: ax.plot(ys, yst, 'o', color='#2ca02c', markersize=8, markeredgecolor='black', zorder=6)
+                # Auto-detected Peak Star
+                ps, pst = peak_point_storage[name]
+                ax.plot(ps, pst, '*', color='gold', markersize=12, markeredgecolor='black', zorder=10)
             
             ax.set_xlabel('Strain (%)', fontweight='bold'); ax.set_ylabel('Stress (MPa)', fontweight='bold')
             if auto_scale:
@@ -213,38 +208,27 @@ if uploaded_files:
             else:
                 ax.set_xlim(0, custom_x_max); ax.set_ylim(0, custom_y_max)
             
-            if legend_pos == "outside": ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', frameon=False, fontsize=9)
-            else: ax.legend(loc=legend_pos, frameon=False, fontsize=9)
+            ax.legend(loc=legend_pos, frameon=True, shadow=True, fontsize=9)
             st.pyplot(fig)
 
-        # --- 8. Batch Comparison (FIXED KEYERROR) ---
+        # --- 8. Batch Comparison & Reports ---
         st.divider()
         st.subheader("⚖️ Batch Property Comparison")
-        control_sample = st.selectbox("Select Control Sample (Baseline)", res_df["Sample"].tolist(), key="ctrl_select_box")
+        control_sample = st.selectbox("Select Control Sample (Baseline)", res_df["Sample"].tolist(), key="ctrl_select_fixed")
         
         if control_sample:
             baseline = res_df[res_df["Sample"] == control_sample].iloc[0]
             comp_df = res_df.copy()
+            for prop in ["Modulus (E) [MPa]", "Stress @ Peak [MPa]"]:
+                comp_df[f"{prop.split(' ')[0]} Δ (%)"] = ((pd.to_numeric(comp_df[prop], errors='coerce') - baseline[prop]) / baseline[prop]) * 100
             
-            # Explicit Delta Calculations
-            comp_df["Modulus Δ (%)"] = ((pd.to_numeric(comp_df["Modulus (E) [MPa]"], errors='coerce') - baseline["Modulus (E) [MPa]"]) / baseline["Modulus (E) [MPa]"]) * 100
-            comp_df["Strength Δ (%)"] = ((pd.to_numeric(comp_df["Stress @ Peak [MPa]"], errors='coerce') - baseline["Stress @ Peak [MPa]"]) / baseline["Stress @ Peak [MPa]"]) * 100
-            comp_df["Toughness Δ (%)"] = ((pd.to_numeric(comp_df["Toughness [MJ/m³]"], errors='coerce') - baseline["Toughness [MJ/m³]"]) / baseline["Toughness [MJ/m³]"]) * 100
-            
-            delta_cols = ["Modulus Δ (%)", "Strength Δ (%)", "Toughness Δ (%)"]
-            st.dataframe(comp_df[["Sample", "Class", "Modulus (E) [MPa]", "Modulus Δ (%)", "Stress @ Peak [MPa]", "Strength Δ (%)", "Toughness [MJ/m³]", "Toughness Δ (%)"]].style.format("{:+.1f}%", subset=delta_cols).background_gradient(subset=delta_cols, cmap="RdYlGn"), hide_index=True, use_container_width=True)
+            delta_cols = [c for c in comp_df.columns if "Δ" in c]
+            st.dataframe(comp_df[["Sample", "Class", "Modulus (E) [MPa]", "Modulus Δ (%)", "Stress @ Peak [MPa]", "Strength Δ (%)", "Toughness [MJ/m³]"]].style.format("{:+.1f}%", subset=delta_cols).background_gradient(subset=delta_cols, cmap="RdYlGn"), hide_index=True, use_container_width=True)
 
-        # --- 9. Final Tables & Export ---
-        st.divider()
         st.subheader("📋 Complete Individual Test Records")
         st.dataframe(res_df, hide_index=True, use_container_width=True)
         
-        st.subheader("📊 Batch Summary Statistics")
-        stats_df = res_df.apply(pd.to_numeric, errors='coerce').drop(columns='Sample', errors='ignore').agg(['mean', 'std', 'count']).T
-        st.table(stats_df.style.format("{:.2f}"))
-        
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            res_df.to_excel(writer, sheet_name='Samples', index=False)
-            stats_df.to_excel(writer, sheet_name='Stats')
-        st.download_button("📥 Download Full Excel Report", data=output.getvalue(), file_name=f"{project_name}_Full_Report.xlsx", key="final_excel_dl")
+            res_df.to_excel(writer, sheet_name='Summary', index=False)
+        st.download_button("📥 Download Excel Report", data=output.getvalue(), file_name=f"{project_name}_Full_Report.xlsx", key="final_excel_report")
