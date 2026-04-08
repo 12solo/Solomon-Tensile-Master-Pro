@@ -4,6 +4,7 @@ import numpy as np
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import io
+import os  # <-- Added this back!
 import re
 import requests
 import base64
@@ -12,7 +13,7 @@ from streamlit_drawable_canvas import st_canvas
 
 # --- 1. Page Configuration ---
 st.set_page_config(
-    page_title="Solomon Tensile Suite 2",
+    page_title="Tensile Extrapolation Suite | Solomon Scientific",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -205,7 +206,7 @@ h1, h2, h3 { color: var(--navy) !important; font-weight: 700 !important; }
 """, unsafe_allow_html=True)
 
 # ==========================================
-# HEADER & SIDEBAR RENDERING
+# HEADER & SIDEBAR RENDERING (From Batch App)
 # ==========================================
 def get_base64(path):
     if os.path.exists(path):
@@ -239,7 +240,7 @@ def render_header():
                     font-weight:700;
                     color:#f0f4fb;
                     line-height:1.1;
-                ">Solomon Tensile Suite <span style="color:#c9a84c;">2.1</span></div>
+                ">Tensile Extrapolation Suite <span style="color:#c9a84c;">2.1</span></div>
                 <div style="
                     font-family:'IBM Plex Sans',sans-serif;
                     font-size:0.72rem;
@@ -247,7 +248,7 @@ def render_header():
                     letter-spacing:0.2em;
                     text-transform:uppercase;
                     margin-top:4px;
-                ">Analytical Framework for Bio-Composite Strain Behavior &nbsp;·&nbsp; Solomon Scientific</div>
+                ">Analytical Framework for Strain Behavior &nbsp;·&nbsp; Solomon Scientific</div>
             </div>
         </div>
         <div style="
@@ -277,7 +278,7 @@ def render_sidebar_brand():
         {icon_html}
         <div style="font-family:'IBM Plex Sans',sans-serif;font-size:0.65rem;color:#9c7a32;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:4px;font-weight:700;">Solomon Scientific</div>
         <div style="font-family:'Playfair Display',Georgia,serif;font-size:1.1rem;font-weight:700;color:#111827;line-height:1.2;">
-            Suite Pro <span style="color:#c9a84c;">2.1</span>
+            Extrapolation Pro <span style="color:#c9a84c;">2.1</span>
         </div>
         <div style="
             margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #e2e8f0;
@@ -289,7 +290,6 @@ def render_sidebar_brand():
     </div>
     """, unsafe_allow_html=True)
 
-# Render main header
 render_header()
 
 # --- 3. Sidebar: Professional Inputs ---
@@ -310,7 +310,7 @@ with st.sidebar:
     scale_map = {"Millimeters (mm)": 1.0, "Micrometers (um)": 0.001, "Meters (m)": 1000.0}
     u_scale = scale_map[unit_input]
 
-    apply_zeroing = st.checkbox("Apply Toe-Compensation (Shift to 0,0)", value=True)
+    apply_zeroing = st.checkbox("Apply Toe-Compensation", value=True)
 
     st.markdown("### 🎨 Plot Customization")
     line_thickness = st.slider("Line Thickness (Journal Plot)", 0.5, 5.0, 2.0, 0.5)
@@ -412,7 +412,7 @@ if uploaded_files:
     modulus_fit_storage = {} 
     sample_color_map = {}
 
-    st.sidebar.markdown("### 🎨 Manual Sample Colors")
+    st.sidebar.markdown("### 🎨 Manual Colors")
 
     st.subheader("🛠️ Sample Configuration & Modulus Validation")
     with st.expander("⚡ Bulk Update (Apply to All Samples)"):
@@ -613,7 +613,7 @@ if uploaded_files:
             plot_sheet.write('A2', 'Note: This image is exported at 600 DPI for publication quality.')
             
             img_excel = io.BytesIO()
-            fig_journal.savefig(img_excel, format='png', dpi=300, bbox_inches='tight') 
+            fig_journal.savefig(img_excel, format='png', dpi=300, bbox_inches='tight') # Reduced DPI for Excel to save space
             img_excel.seek(0)
             plot_sheet.insert_image('A4', 'final_plot.png', {'image_data': img_excel, 'x_scale': 0.8, 'y_scale': 0.8})
 
