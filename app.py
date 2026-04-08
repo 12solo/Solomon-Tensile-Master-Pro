@@ -4,29 +4,29 @@ import numpy as np
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import io
-import os  # <-- Added this back!
 import re
-import requests
+import os
 import base64
 from PIL import Image
 from streamlit_drawable_canvas import st_canvas
 
 # --- 1. Page Configuration ---
 st.set_page_config(
-    page_title="Tensile Master Pro2 | Solomon Scientific",
-    page_icon="LOGO.png",
+    page_title="Tensile Extrapolation Suite | Solomon Scientific",
+    page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # ==========================================
-# GLOBAL CSS — White Theme + Navy/Gold Headers & Clean UI
+# GLOBAL CSS — White Theme + Dark Blue Headers & Clean UI
 # ==========================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
 :root {
+    --dark-blue:  #003366; /* New Dark Blue for Headings */
     --navy:       #0b1120;
     --navy-mid:   #111827;
     --gold:       #c9a84c;
@@ -96,7 +96,7 @@ div[data-baseweb="tooltip"] { display: none !important; visibility: hidden !impo
     font-weight: 700 !important;
     letter-spacing: 0.15em !important;
     text-transform: uppercase !important;
-    color: var(--gold-dim) !important;
+    color: var(--dark-blue) !important;
     margin-top: 0.25rem !important;
 }
 [data-testid="stSidebar"] hr {
@@ -131,12 +131,12 @@ div[data-baseweb="tooltip"] { display: none !important; visibility: hidden !impo
 }
 
 /* ── Headings Main ────────────────────────────── */
-h1, h2, h3 { color: var(--navy) !important; font-weight: 700 !important; }
+h1, h2, h3 { color: var(--dark-blue) !important; font-weight: 700 !important; }
 
 /* ── Buttons ──────────────────────────────────── */
 .stButton > button {
     background: var(--bg-offwhite) !important;
-    color: var(--navy) !important;
+    color: var(--dark-blue) !important;
     border: 1px solid var(--border) !important;
     border-radius: var(--radius) !important;
     font-family: var(--font-body) !important;
@@ -158,7 +158,7 @@ h1, h2, h3 { color: var(--navy) !important; font-weight: 700 !important; }
 }
 [data-testid="stDownloadButton"] > button {
     background: var(--bg-offwhite) !important;
-    color: var(--navy) !important;
+    color: var(--dark-blue) !important;
     border: 1px solid var(--border) !important;
 }
 
@@ -170,7 +170,7 @@ h1, h2, h3 { color: var(--navy) !important; font-weight: 700 !important; }
     box-shadow: none !important;
 }
 [data-testid="stExpander"] summary p {
-    color: var(--navy) !important;
+    color: var(--dark-blue) !important;
     font-weight: 700 !important;
     font-size: 0.85rem !important;
 }
@@ -184,7 +184,7 @@ h1, h2, h3 { color: var(--navy) !important; font-weight: 700 !important; }
 }
 [data-testid="stDataFrame"] th {
     background: var(--bg-offwhite) !important;
-    color: var(--navy) !important;
+    color: var(--dark-blue) !important;
     font-family: var(--font-body) !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
@@ -206,7 +206,7 @@ h1, h2, h3 { color: var(--navy) !important; font-weight: 700 !important; }
 """, unsafe_allow_html=True)
 
 # ==========================================
-# HEADER & SIDEBAR RENDERING (From Batch App)
+# HEADER & SIDEBAR RENDERING 
 # ==========================================
 def get_base64(path):
     if os.path.exists(path):
@@ -226,7 +226,7 @@ def render_header():
     <div style="
         display:flex; align-items:center; justify-content:space-between;
         padding: 1.5rem 2rem;
-        background: linear-gradient(135deg, #0b1120 0%, #0f1a2e 100%);
+        background: linear-gradient(135deg, #001f3f 0%, #000c1a 100%); /* Dark Blue Gradient */
         border-radius: 4px;
         margin-bottom: 1.5rem;
         margin-top: 0.5rem;
@@ -240,7 +240,7 @@ def render_header():
                     font-weight:700;
                     color:#f0f4fb;
                     line-height:1.1;
-                ">Tensile Master Pro2 <span style="color:#c9a84c;">2.1</span></div>
+                ">Solomon Tensile Suite <span style="color:#c9a84c;">2.1</span></div>
                 <div style="
                     font-family:'IBM Plex Sans',sans-serif;
                     font-size:0.72rem;
@@ -248,7 +248,7 @@ def render_header():
                     letter-spacing:0.2em;
                     text-transform:uppercase;
                     margin-top:4px;
-                ">Analytical Framework for Strain Behavior &nbsp;·&nbsp; Solomon Scientific</div>
+                ">Analytical Framework for Bio-Composite Strain Behavior &nbsp;·&nbsp; Solomon Scientific</div>
             </div>
         </div>
         <div style="
@@ -277,8 +277,8 @@ def render_sidebar_brand():
     <div style="padding:1.25rem 0 0.5rem 0;text-align:center;">
         {icon_html}
         <div style="font-family:'IBM Plex Sans',sans-serif;font-size:0.65rem;color:#9c7a32;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:4px;font-weight:700;">Solomon Scientific</div>
-        <div style="font-family:'Playfair Display',Georgia,serif;font-size:1.1rem;font-weight:700;color:#111827;line-height:1.2;">
-            Extrapolation Pro <span style="color:#c9a84c;">2.1</span>
+        <div style="font-family:'Playfair Display',Georgia,serif;font-size:1.1rem;font-weight:700;color:#003366;line-height:1.2;">
+            Suite Pro <span style="color:#c9a84c;">2.1</span>
         </div>
         <div style="
             margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #e2e8f0;
@@ -290,6 +290,7 @@ def render_sidebar_brand():
     </div>
     """, unsafe_allow_html=True)
 
+# Render main header
 render_header()
 
 # --- 3. Sidebar: Professional Inputs ---
@@ -310,7 +311,7 @@ with st.sidebar:
     scale_map = {"Millimeters (mm)": 1.0, "Micrometers (um)": 0.001, "Meters (m)": 1000.0}
     u_scale = scale_map[unit_input]
 
-    apply_zeroing = st.checkbox("Apply Toe-Compensation", value=True)
+    apply_zeroing = st.checkbox("Apply Toe-Compensation (Shift to 0,0)", value=True)
 
     st.markdown("### 🎨 Plot Customization")
     line_thickness = st.slider("Line Thickness (Journal Plot)", 0.5, 5.0, 2.0, 0.5)
@@ -323,7 +324,7 @@ with st.sidebar:
 
 # --- 20 MAXIMUM CONTRAST COLORS (Gold & Navy First) ---
 distinct_20 = [
-    "#c9a84c", "#111827", "#e05252", "#3a7bd5", "#3db87a", "#803E75", "#FF6800",
+    "#c9a84c", "#003366", "#e05252", "#3a7bd5", "#3db87a", "#803E75", "#FF6800",
     "#817066", "#007D34", "#F6768E", "#00538A", "#FF7A5C", "#53377A", "#FF8E00",
     "#B32851", "#F4C800", "#7F180D", "#93AA00", "#593315", "#F13A13", "#232C16"
 ]
@@ -453,6 +454,7 @@ if uploaded_files:
             stress_all = df_clean[f_col].values if (inst_stress_col and f_col == inst_stress_col) else (df_clean[f_col].values / area)
             strain_all = (disp_all / gauge_length) * 100
 
+        # TRUNCATE POST-FRACTURE NOISE
         peak_idx = np.argmax(stress_all)
         stress_raw = stress_all[:peak_idx + 1]
         strain_raw = strain_all[:peak_idx + 1]
@@ -504,7 +506,7 @@ if uploaded_files:
 
                 fig_mini = go.Figure()
                 fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color=chosen_color)))
-                fig_mini.add_trace(go.Scatter(x=fit_x, y=fit_y, name="Modulus Fit", line=dict(dash='dot', color='#111827')))
+                fig_mini.add_trace(go.Scatter(x=fit_x, y=fit_y, name="Modulus Fit", line=dict(dash='dot', color='#003366')))
                 
                 if y_stress != "N/A":
                     fig_mini.add_trace(go.Scatter(x=[y_strain], y=[y_stress], mode='markers', marker=dict(color='#e05252', size=12, symbol='circle-open-dot')))
@@ -557,7 +559,7 @@ if uploaded_files:
             fig_main = go.Figure()
             for name, data in plot_data_storage.items():
                 fig_main.add_trace(go.Scatter(x=data[0], y=data[1], name=name, mode='lines', 
-                                             line=dict(width=line_thickness, color=sample_color_map.get(name, '#111827'))))
+                                             line=dict(width=line_thickness, color=sample_color_map.get(name, '#003366'))))
             x_lim = res_df["Strain @ Peak [%]"].max() * 1.05 if auto_scale else custom_x_max
             y_lim = res_df["Stress @ Peak [MPa]"].max() * 1.1 if auto_scale else custom_y_max
             fig_main.update_layout(plot_bgcolor='#ffffff', paper_bgcolor='#ffffff', font=dict(color='#111827'), xaxis=dict(title="Strain (%)", range=[0, x_lim], showgrid=False, linecolor='#111827', linewidth=2, ticks='inside'), yaxis=dict(title="Stress (MPa)", range=[0, y_lim], showgrid=False, linecolor='#111827', linewidth=2, ticks='inside'), height=650)
@@ -594,6 +596,71 @@ if uploaded_files:
         st.dataframe(res_df, hide_index=True, use_container_width=True)
 
         # --- 13. COMPREHENSIVE EXPORT MODULE ---
+        st.divider()
+        
+        # --- SCIENTIFIC METHODS SECTION ---
+        st.subheader("📖 Computational Methodology")
+        st.markdown("Automated data reduction and analytical pipeline.")
+        
+        with st.expander("I. Data Pre-Processing & Digitization", expanded=True):
+            st.markdown(r"""
+            **Raw Data Acquisition & Parsing:** Tensile data is imported via standard tabular formats (CSV/XLSX/TXT) or extracted from legacy graphical plots via affine coordinate transformation. 
+            
+            **Image Digitization Protocol:** For graphical data, user-defined anchor points establish the mathematical bounds of the plot space. The application subsequently maps digitized pixel coordinates $(x_p, y_p)$ to the real engineering domain $(\varepsilon, \sigma)$ using linear scalar transformations.
+            """)
+
+        with st.expander("II. Toe Compensation & Origin Calibration", expanded=False):
+            st.markdown(r"""
+            **Artifact Removal:** Initial non-linearities caused by machine compliance, grip slippage, or specimen seating are systematically eliminated.
+            
+            **Algorithmic Approach:** The algorithm evaluates the initial strain domain utilizing a sliding regression window to isolate the region of maximum contiguous linearity (Young's Modulus, $E$). This linear domain is extrapolated backward to intersect the zero-stress axis. The resulting strain-intercept denotes the **toe offset** ($\delta$):
+            
+            $$\delta = \frac{-b_{\max}}{m_{\max}}$$
+            
+            The entire stress-strain trace is uniformly translated by $-\delta$, rigorously forcing the true elastic region through the Cartesian origin $(0,0)$.
+            """)
+
+        with st.expander("III. Elastic & Plastic Parameters", expanded=False):
+            st.markdown(r"""
+            **Young's Modulus ($E$):** Determined as the slope of the toe-compensated linear elastic region:
+            $$E = \frac{\Delta\sigma}{\Delta\varepsilon} \quad (\text{MPa})$$
+            
+            **Yield Strength ($\sigma_y$):** Evaluated strictly via the standard $0.2\%$ strain offset criterion (e.g., per ASTM D638 / ISO 527). A theoretical line of slope $E$ is translated $0.002$ mm/mm along the abscissa. The intercept with the empirical curve defines the yield coordinate.
+            $$\sigma_{\text{offset}} = E \cdot (\varepsilon - 0.002)$$
+            """)
+
+        with st.expander("IV. Ultimate Limits & Failure Truncation", expanded=False):
+            st.markdown(r"""
+            **Ultimate Tensile Strength (UTS):** Evaluated as the global maximum engineering stress achieved prior to the onset of localized necking or failure.
+            $$\text{UTS} = \max(\sigma) = \frac{F_{\max}}{A_0}$$
+            
+            **Fracture Definition & Noise Truncation:** To prevent post-failure machine rebound or sensor noise from corrupting data integrity, structural failure is strictly defined at the ultimate stress index. The dataset is programmatically truncated immediately at this peak ($i = i_{\text{UTS}}$), discarding all subsequent trailing data.
+            """)
+
+        with st.expander("V. Energy Integrals (Work & Toughness)", expanded=False):
+            st.markdown(r"""
+            **Absolute Work of Rupture ($W$):** The total thermodynamic energy required to fracture the specimen, calculated via trapezoidal numerical integration of the raw Force-Displacement curve.
+            $$W = \int_0^{L_f} F \, dL \quad (\text{Joules})$$
+            
+            **Modulus of Toughness ($U_T$):** The volumetric energy absorption capacity, representing the integrated area beneath the normalized engineering Stress-Strain envelope.
+            $$U_T = \int_0^{\varepsilon_f} \sigma \, d\varepsilon \quad (\text{MJ/m}^3)$$
+            """)
+
+        st.markdown("**Auto-Generated Methodology Text** (Standardized excerpt for academic manuscripts):")
+        methods_text = (
+            "Mechanical property extraction was conducted using the Solomon Tensile Suite v2.1. "
+            "Raw load-displacement data were standardized and evaluated for machine compliance. "
+            "A dynamic sliding-window regression was utilized over the initial deformation phase "
+            "to identify the maximum linear elastic gradient (Young's modulus), which was subsequently extrapolated "
+            "to perform toe-compensation and align the data origin. Yield strength was isolated employing the "
+            "standard 0.2% strain offset technique. Ultimate tensile strength (UTS) was defined at the global stress maximum, "
+            "with all post-peak fracture and noise artifacts programmatically truncated to ensure data integrity. "
+            "Energy absorption metrics, including volumetric toughness (MJ/m³) and absolute work of rupture (J), "
+            "were calculated via trapezoidal numerical integration of the engineering stress-strain and "
+            "force-displacement envelopes, respectively."
+        )
+        st.text_area("", methods_text, height=180)
+
         st.divider()
         excel_out = io.BytesIO()
         with pd.ExcelWriter(excel_out, engine='xlsxwriter') as writer:
