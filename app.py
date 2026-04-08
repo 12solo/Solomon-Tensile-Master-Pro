@@ -10,38 +10,45 @@ import base64
 from PIL import Image
 from streamlit_drawable_canvas import st_canvas
 
-# --- 1. Page Configuration & Custom Font Styling ---
-st.set_page_config(page_title="Solomon Tensile Suite", layout="wide")
+# --- 1. Page Configuration ---
+st.set_page_config(
+    page_title="Tensile Extrapolation Suite | Solomon Scientific",
+    page_icon="🔬",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # ==========================================
-# GLOBAL CSS — Slate & Electric Cyan (Ultra-Clean Flat Theme)
+# GLOBAL CSS — White Theme + Navy/Gold Headers & Clean UI
 # ==========================================
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
 :root {
-    /* Different Color Palette: Slate & Cyan */
-    --bg-main:    #0f172a; /* Deep Slate */
-    --bg-panel:   #1e293b; /* Lighter Slate for panels */
-    --text-main:  #f8fafc; /* Crisp off-white */
-    --text-muted: #94a3b8; /* Muted gray */
-    --accent:     #00E5FF; /* Electric Cyan */
-    --accent-dim: #00B8D4; /* Darker Cyan */
-    --border-color: rgba(0, 229, 255, 0.25);
-    
-    --font-body:  'Inter', sans-serif;
-    --font-mono:  'JetBrains Mono', monospace;
+    --navy:       #0b1120;
+    --navy-mid:   #111827;
+    --gold:       #c9a84c;
+    --gold-dim:   #9c7a32;
+    --bg-white:   #ffffff;
+    --bg-offwhite:#f8fafc;
+    --text-dark:  #111827; 
+    --text-muted: #64748b; 
+    --border:     #e2e8f0;
     --radius:     4px;
+    
+    --font-head:  'Playfair Display', Georgia, serif;
+    --font-mono:  'IBM Plex Mono', 'Courier New', monospace;
+    --font-body:  'IBM Plex Sans', 'Segoe UI', sans-serif;
 }
 
 /* ── Reset & Base ─────────────────────────────── */
 html, body, [class*="css"], .stMarkdown, .stText, .stButton, .stSelectbox, .stTable {
     font-family: var(--font-body) !important;
-    color: var(--text-main) !important;
+    color: var(--text-dark) !important;
 }
 .stApp {
-    background: var(--bg-main) !important;
+    background: var(--bg-white) !important;
 }
 
 [data-testid="block-container"] {
@@ -49,11 +56,11 @@ html, body, [class*="css"], .stMarkdown, .stText, .stButton, .stSelectbox, .stTa
     padding-bottom: 2rem !important;
 }
 
-/* ── SURGICAL CLEAN UI (Hides Popups & Arrows) ── */
+/* ── SURGICAL CLEAN UI (Hides Popups & Arrows & Shadows) ── */
 #MainMenu { visibility: hidden !important; display: none !important; }
 .stDeployButton { display: none !important; }
 footer { visibility: hidden !important; display: none !important; }
-header { background: transparent !important; } 
+header { background: transparent !important; box-shadow: none !important; } 
 
 /* Hide "Press Enter to apply" */
 div[data-testid="InputInstructions"] { display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0px !important; }
@@ -64,9 +71,7 @@ input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
-input[type="number"] {
-    -moz-appearance: textfield;
-}
+input[type="number"] { -moz-appearance: textfield; }
 
 /* Clean Uploader: Hide Cloud Icon and 200MB text */
 [data-testid="stFileUploadDropzone"] svg { display: none !important; }
@@ -79,23 +84,23 @@ div[data-baseweb="tooltip"] { display: none !important; visibility: hidden !impo
 
 /* ── Sidebar ──────────────────────────────────── */
 [data-testid="stSidebar"] {
-    background: var(--bg-panel) !important;
-    border-right: 1px solid var(--border-color) !important;
+    background: var(--bg-offwhite) !important;
+    border-right: 1px solid var(--border) !important;
 }
 [data-testid="stSidebar"] h1,
 [data-testid="stSidebar"] h2,
 [data-testid="stSidebar"] h3 {
     font-family: var(--font-body) !important;
     font-size: 0.75rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.1em !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.15em !important;
     text-transform: uppercase !important;
-    color: var(--accent) !important;
+    color: var(--gold-dim) !important;
     margin-top: 0.25rem !important;
 }
 [data-testid="stSidebar"] hr {
     border: none !important;
-    border-top: 1px solid var(--border-color) !important;
+    border-top: 1px solid var(--border) !important;
     margin: 1rem 0 !important;
 }
 
@@ -106,33 +111,32 @@ div[data-baseweb="tooltip"] { display: none !important; visibility: hidden !impo
 .stSelectbox > div > div,
 .stTextInput > div > div > input,
 .stNumberInput > div > div > input {
-    background: var(--bg-main) !important;
-    border: 1px solid var(--border-color) !important;
+    background: var(--bg-white) !important;
+    border: 1px solid var(--border) !important;
     border-radius: var(--radius) !important;
-    color: var(--text-main) !important;
+    color: var(--text-dark) !important;
     font-family: var(--font-mono) !important;
     font-size: 0.85rem !important;
     box-shadow: none !important;
 }
 
 [data-testid="stFileUploadDropzone"] {
-    background: var(--bg-panel) !important;
-    border: 1px dashed var(--accent-dim) !important;
+    background: var(--bg-offwhite) !important;
+    border: 1px dashed var(--border) !important;
     border-radius: var(--radius) !important;
 }
 [data-testid="stFileUploadDropzone"]:hover {
-    border-color: var(--accent) !important;
-    background: var(--bg-main) !important;
+    border-color: var(--gold) !important;
 }
 
 /* ── Headings Main ────────────────────────────── */
-h1, h2, h3 { color: var(--accent) !important; font-weight: 700 !important; }
+h1, h2, h3 { color: var(--navy) !important; font-weight: 700 !important; }
 
 /* ── Buttons ──────────────────────────────────── */
 .stButton > button {
-    background: var(--bg-panel) !important;
-    color: var(--accent) !important;
-    border: 1px solid var(--accent-dim) !important;
+    background: var(--bg-offwhite) !important;
+    color: var(--navy) !important;
+    border: 1px solid var(--border) !important;
     border-radius: var(--radius) !important;
     font-family: var(--font-body) !important;
     font-weight: 600 !important;
@@ -144,107 +148,181 @@ h1, h2, h3 { color: var(--accent) !important; font-weight: 700 !important; }
     transition: all 0.2s ease !important;
 }
 .stButton > button:hover {
-    background: var(--accent) !important;
-    color: var(--bg-main) !important;
+    background: var(--border) !important;
 }
 .stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, var(--accent-dim), var(--accent)) !important;
-    color: var(--bg-main) !important;
+    background: linear-gradient(135deg, var(--gold-dim), var(--gold)) !important;
+    color: var(--navy) !important;
     border: none !important;
 }
 [data-testid="stDownloadButton"] > button {
-    background: var(--bg-panel) !important;
-    color: var(--accent) !important;
-    border: 1px solid var(--accent-dim) !important;
+    background: var(--bg-offwhite) !important;
+    color: var(--navy) !important;
+    border: 1px solid var(--border) !important;
 }
 
 /* ── Expanders ────────────────────────────────── */
 [data-testid="stExpander"] {
-    border: 1px solid var(--border-color) !important;
+    border: 1px solid var(--border) !important;
     border-radius: var(--radius) !important;
-    background: var(--bg-panel) !important;
+    background: var(--bg-white) !important;
     box-shadow: none !important;
 }
 [data-testid="stExpander"] summary p {
-    color: var(--accent) !important;
-    font-weight: 600 !important;
+    color: var(--navy) !important;
+    font-weight: 700 !important;
     font-size: 0.85rem !important;
 }
 
 /* ── DataFrames ───────────────────────────────── */
 [data-testid="stDataFrame"] {
-    border: 1px solid var(--border-color) !important;
+    border: 1px solid var(--border) !important;
     border-radius: var(--radius) !important;
     overflow: hidden !important;
     box-shadow: none !important;
 }
 [data-testid="stDataFrame"] th {
-    background: var(--bg-panel) !important;
-    color: var(--accent) !important;
+    background: var(--bg-offwhite) !important;
+    color: var(--navy) !important;
     font-family: var(--font-body) !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
     text-transform: uppercase !important;
 }
 [data-testid="stDataFrame"] td {
-    color: var(--text-main) !important;
-    background: var(--bg-main) !important;
+    color: var(--text-dark) !important;
+    background: var(--bg-white) !important;
     font-family: var(--font-mono) !important;
 }
 
 /* ── Alerts / Info ────────────────────────────── */
 [data-testid="stAlert"] {
-    background: rgba(0, 229, 255, 0.05) !important;
-    border: 1px solid var(--border-color) !important;
+    background: rgba(201, 168, 76, 0.1) !important;
+    border: 1px solid rgba(201, 168, 76, 0.3) !important;
     border-radius: var(--radius) !important;
-    color: var(--text-main) !important;
+    color: var(--text-dark) !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. Professional Logo & Header ---
-logo_url = "https://raw.githubusercontent.com/12solo/Tensile-test-extrapolator/main/logo%20s.png"
-col_logo, col_text = st.columns([1, 5])
+# ==========================================
+# HEADER & SIDEBAR RENDERING (From Batch App)
+# ==========================================
+def get_base64(path):
+    if os.path.exists(path):
+        with open(path, 'rb') as f:
+            return base64.b64encode(f.read()).decode()
+    return None
 
-with col_logo:
-    try:
-        st.image(logo_url, width=150) 
-    except:
-        st.header("🔬")
+def render_header():
+    logo_path = "LOGO.png"
+    img_b64 = get_base64(logo_path)
+    if img_b64:
+        icon_html = f'<img src="data:image/png;base64,{img_b64}" style="height:54px;width:54px;object-fit:contain;border-radius:8px;background:#fff;">'
+    else:
+        icon_html = '<div style="width: 54px; height: 54px; background: linear-gradient(135deg, #9c7a32, #c9a84c); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; flex-shrink: 0;">🔬</div>'
 
-with col_text:
-    st.title("Solomon Tensile Suite 2")
-    st.markdown("""**Analytical Framework for Bio-Composite Strain Behavior** 🚀""")
+    st.markdown(f"""
+    <div style="
+        display:flex; align-items:center; justify-content:space-between;
+        padding: 1.5rem 2rem;
+        background: linear-gradient(135deg, #0b1120 0%, #0f1a2e 100%);
+        border-radius: 4px;
+        margin-bottom: 1.5rem;
+        margin-top: 0.5rem;
+    ">
+        <div style="display:flex;align-items:center;gap:1.5rem;">
+            {icon_html}
+            <div>
+                <div style="
+                    font-family:'Playfair Display',Georgia,serif;
+                    font-size:1.75rem;
+                    font-weight:700;
+                    color:#f0f4fb;
+                    line-height:1.1;
+                ">Tensile Extrapolation Suite <span style="color:#c9a84c;">2.1</span></div>
+                <div style="
+                    font-family:'IBM Plex Sans',sans-serif;
+                    font-size:0.72rem;
+                    color:#a8b4c8;
+                    letter-spacing:0.2em;
+                    text-transform:uppercase;
+                    margin-top:4px;
+                ">Analytical Framework for Strain Behavior &nbsp;·&nbsp; Solomon Scientific</div>
+            </div>
+        </div>
+        <div style="
+            font-family:'IBM Plex Sans',sans-serif;
+            font-size:0.65rem;
+            color:#64748b;
+            letter-spacing:0.12em;
+            text-transform:uppercase;
+            text-align:right;
+            line-height:1.8;
+        ">
+            © 2026<br>Research Use
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def render_sidebar_brand():
+    logo_path = "LOGO.png"
+    img_b64 = get_base64(logo_path)
+    if img_b64:
+        icon_html = f'<img src="data:image/png;base64,{img_b64}" style="width:52px;height:52px;object-fit:contain;border-radius:8px;background:#fff;margin: 0 auto 0.75rem auto; display: block;">'
+    else:
+        icon_html = '<div style="width:52px;height:52px;margin:0 auto 0.75rem auto;background:linear-gradient(135deg,#9c7a32,#c9a84c);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;">🔬</div>'
+
+    st.markdown(f"""
+    <div style="padding:1.25rem 0 0.5rem 0;text-align:center;">
+        {icon_html}
+        <div style="font-family:'IBM Plex Sans',sans-serif;font-size:0.65rem;color:#9c7a32;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:4px;font-weight:700;">Solomon Scientific</div>
+        <div style="font-family:'Playfair Display',Georgia,serif;font-size:1.1rem;font-weight:700;color:#111827;line-height:1.2;">
+            Extrapolation Pro <span style="color:#c9a84c;">2.1</span>
+        </div>
+        <div style="
+            margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #e2e8f0;
+            font-family:'IBM Plex Sans',sans-serif;font-size:0.68rem;color:#64748b;line-height:1.5;
+        ">
+            Advanced Modeling Tools &nbsp;<br>
+            <a href='mailto:your.solomon.duf@gmail.com' style='color:#9c7a32;text-decoration:none;font-weight:500;'>✉ Contact Developer</a>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+render_header()
 
 # --- 3. Sidebar: Professional Inputs ---
-st.sidebar.header("📝 Project Metadata")
-project_name = st.sidebar.text_input("Research Topic", "PBAT-PLA-Biocomposites")
+with st.sidebar:
+    render_sidebar_brand()
+    
+    st.markdown("### 📝 Project Metadata")
+    project_name = st.text_input("Research Topic", "PBAT-PLA-Biocomposites")
 
-st.sidebar.header("📏 Specimen Geometry")
-thickness = st.sidebar.number_input("Thickness (mm)", value=4.0, step=0.1)
-width = st.sidebar.number_input("Width (mm)", value=4.0, step=0.1)
-gauge_length = st.sidebar.number_input("Initial Gauge Length (L0) [mm]", value=25.0, step=1.0)
-area = width * thickness 
+    st.markdown("### 📏 Specimen Geometry")
+    thickness = st.number_input("Thickness (mm)", value=4.0, step=0.1)
+    width = st.number_input("Width (mm)", value=4.0, step=0.1)
+    gauge_length = st.number_input("Initial Gauge Length (L0) [mm]", value=25.0, step=1.0)
+    area = width * thickness 
 
-st.sidebar.header("⚙️ Data Calibration")
-unit_input = st.sidebar.selectbox("Raw Displacement Unit", ["Millimeters (mm)", "Micrometers (um)", "Meters (m)"])
-scale_map = {"Millimeters (mm)": 1.0, "Micrometers (um)": 0.001, "Meters (m)": 1000.0}
-u_scale = scale_map[unit_input]
+    st.markdown("### ⚙️ Data Calibration")
+    unit_input = st.selectbox("Raw Displacement Unit", ["Millimeters (mm)", "Micrometers (um)", "Meters (m)"])
+    scale_map = {"Millimeters (mm)": 1.0, "Micrometers (um)": 0.001, "Meters (m)": 1000.0}
+    u_scale = scale_map[unit_input]
 
-apply_zeroing = st.sidebar.checkbox("Apply Toe-Compensation (Shift to 0,0)", value=True)
+    apply_zeroing = st.checkbox("Apply Toe-Compensation", value=True)
 
-st.sidebar.header("🎨 Plot Customization")
-line_thickness = st.sidebar.slider("Line Thickness (Journal Plot)", 0.5, 5.0, 2.0, 0.5)
-legend_pos = st.sidebar.selectbox("Legend Position", ["lower right", "upper right", "upper left", "lower left", "best", "outside"], index=0)
+    st.markdown("### 🎨 Plot Customization")
+    line_thickness = st.slider("Line Thickness (Journal Plot)", 0.5, 5.0, 2.0, 0.5)
+    legend_pos = st.selectbox("Legend Position", ["lower right", "upper right", "upper left", "lower left", "best", "outside"], index=0)
 
-auto_scale = st.sidebar.checkbox("Enable Auto-Scale", value=True)
-if not auto_scale:
-    custom_x_max = st.sidebar.number_input("Manual X Max (Strain %)", value=10.0)
-    custom_y_max = st.sidebar.number_input("Manual Y Max (Stress MPa)", value=50.0)
+    auto_scale = st.checkbox("Enable Auto-Scale", value=True)
+    if not auto_scale:
+        custom_x_max = st.number_input("Manual X Max (Strain %)", value=10.0)
+        custom_y_max = st.number_input("Manual Y Max (Stress MPa)", value=50.0)
 
 # --- 20 MAXIMUM CONTRAST COLORS (KELLY'S SET) ---
-# This set is designed so that every color is as distinct as possible from the others.
 distinct_20 = [
-    "#00E5FF", "#FFB300", "#803E75", "#FF6800", "#A6BDD7", "#C10020", "#CEA262",
+    "#c9a84c", "#111827", "#e05252", "#3a7bd5", "#3db87a", "#803E75", "#FF6800",
     "#817066", "#007D34", "#F6768E", "#00538A", "#FF7A5C", "#53377A", "#FF8E00",
     "#B32851", "#F4C800", "#7F180D", "#93AA00", "#593315", "#F13A13", "#232C16"
 ]
@@ -252,7 +330,6 @@ distinct_20 = [
 def clean_label(name):
     return re.sub(r'\.(txt|csv|xlsx|xls)$', '', name, flags=re.IGNORECASE)
 
-# --- 4. Digitizer Helper Class ---
 class DigitizedFile:
     def __init__(self, name, df):
         self.name = name
@@ -276,9 +353,9 @@ def image_digitizer_ui():
         with c1:
             h_calc = int(img.height * (800 / img.width))
             canvas_result = st_canvas(
-                fill_color="rgba(0, 229, 255, 0.3)", 
+                fill_color="rgba(201, 168, 76, 0.3)", 
                 stroke_width=2, 
-                stroke_color="#00E5FF",
+                stroke_color="#e05252",
                 background_image=Image.open(digitizer_file),
                 height=h_calc, 
                 width=800,
@@ -334,7 +411,7 @@ if uploaded_files:
     modulus_fit_storage = {} 
     sample_color_map = {}
 
-    st.sidebar.header("🎨 Manual Sample Colors")
+    st.sidebar.markdown("### 🎨 Manual Colors")
 
     st.subheader("🛠️ Sample Configuration & Modulus Validation")
     with st.expander("⚡ Bulk Update (Apply to All Samples)"):
@@ -363,7 +440,6 @@ if uploaded_files:
         f_col = st.sidebar.selectbox(f"Force/Stress ({file.name})", cols, index=cols.index(def_f), key=f"f_{file.name}")
         d_col = st.sidebar.selectbox(f"Disp/Strain ({file.name})", cols, index=cols.index(def_d), key=f"d_{file.name}")
         
-        # Color Adjustment using the 20 strictly distinct colors
         chosen_color = st.sidebar.color_picker(f"Color: {clean_label(file.name)}", value=distinct_20[idx % len(distinct_20)], key=f"color_{file.name}")
 
         df_clean = df[[f_col, d_col]].apply(pd.to_numeric, errors='coerce').dropna()
@@ -427,12 +503,12 @@ if uploaded_files:
 
                 fig_mini = go.Figure()
                 fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color=chosen_color)))
-                fig_mini.add_trace(go.Scatter(x=fit_x, y=fit_y, name="Modulus Fit", line=dict(dash='dot', color='#00E5FF')))
+                fig_mini.add_trace(go.Scatter(x=fit_x, y=fit_y, name="Modulus Fit", line=dict(dash='dot', color='#111827')))
                 
                 if y_stress != "N/A":
-                    fig_mini.add_trace(go.Scatter(x=[y_strain], y=[y_stress], mode='markers', marker=dict(color='#00E5FF', size=12, symbol='circle-open-dot')))
+                    fig_mini.add_trace(go.Scatter(x=[y_strain], y=[y_stress], mode='markers', marker=dict(color='#e05252', size=12, symbol='circle-open-dot')))
 
-                fig_mini.update_layout(height=280, margin=dict(l=0, r=0, t=0, b=0), plot_bgcolor='#1e293b', paper_bgcolor='#1e293b', showlegend=False, xaxis=dict(range=[0, None], showgrid=False, color='#f8fafc'), yaxis=dict(range=[0, None], showgrid=False, color='#f8fafc'))
+                fig_mini.update_layout(height=280, margin=dict(l=0, r=0, t=0, b=0), plot_bgcolor='#ffffff', paper_bgcolor='#ffffff', showlegend=False, xaxis=dict(range=[0, None], showgrid=False, linecolor='#e2e8f0'), yaxis=dict(range=[0, None], showgrid=False, linecolor='#e2e8f0'))
                 prev_col.plotly_chart(fig_mini, use_container_width=True)
 
                 try: work_j = np.trapezoid(stress_plot * area, (strain_plot/100 * gauge_length) / 1000.0)
@@ -480,10 +556,10 @@ if uploaded_files:
             fig_main = go.Figure()
             for name, data in plot_data_storage.items():
                 fig_main.add_trace(go.Scatter(x=data[0], y=data[1], name=name, mode='lines', 
-                                             line=dict(width=line_thickness, color=sample_color_map.get(name, '#00E5FF'))))
+                                             line=dict(width=line_thickness, color=sample_color_map.get(name, '#000000'))))
             x_lim = res_df["Strain @ Peak [%]"].max() * 1.05 if auto_scale else custom_x_max
             y_lim = res_df["Stress @ Peak [MPa]"].max() * 1.1 if auto_scale else custom_y_max
-            fig_main.update_layout(plot_bgcolor='#0f172a', paper_bgcolor='#0f172a', font=dict(color='#f8fafc'), xaxis=dict(title="Strain (%)", range=[0, x_lim], showgrid=False, linecolor='#00E5FF'), yaxis=dict(title="Stress (MPa)", range=[0, y_lim], showgrid=False, linecolor='#00E5FF'), height=650)
+            fig_main.update_layout(plot_bgcolor='#ffffff', paper_bgcolor='#ffffff', font=dict(color='#111827'), xaxis=dict(title="Strain (%)", range=[0, x_lim], showgrid=False, linecolor='#000000', linewidth=2, ticks='inside'), yaxis=dict(title="Stress (MPa)", range=[0, y_lim], showgrid=False, linecolor='#000000', linewidth=2, ticks='inside'), height=650)
             st.plotly_chart(fig_main, use_container_width=True)
         else:
             st.pyplot(fig_journal)
