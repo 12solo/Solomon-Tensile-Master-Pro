@@ -13,13 +13,193 @@ from streamlit_drawable_canvas import st_canvas
 # --- 1. Page Configuration & Custom Font Styling ---
 st.set_page_config(page_title="Solomon Tensile Suite", layout="wide")
 
+# ==========================================
+# GLOBAL CSS — Slate & Electric Cyan (Ultra-Clean Flat Theme)
+# ==========================================
 st.markdown("""
-    <style>
-    html, body, [class*="css"], .stMarkdown, .stText, .stButton, .stSelectbox, .stTable {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+    /* Different Color Palette: Slate & Cyan */
+    --bg-main:    #0f172a; /* Deep Slate */
+    --bg-panel:   #1e293b; /* Lighter Slate for panels */
+    --text-main:  #f8fafc; /* Crisp off-white */
+    --text-muted: #94a3b8; /* Muted gray */
+    --accent:     #00E5FF; /* Electric Cyan */
+    --accent-dim: #00B8D4; /* Darker Cyan */
+    --border-color: rgba(0, 229, 255, 0.25);
+    
+    --font-body:  'Inter', sans-serif;
+    --font-mono:  'JetBrains Mono', monospace;
+    --radius:     4px;
+}
+
+/* ── Reset & Base ─────────────────────────────── */
+html, body, [class*="css"], .stMarkdown, .stText, .stButton, .stSelectbox, .stTable {
+    font-family: var(--font-body) !important;
+    color: var(--text-main) !important;
+}
+.stApp {
+    background: var(--bg-main) !important;
+}
+
+[data-testid="block-container"] {
+    padding-top: 1.5rem !important; 
+    padding-bottom: 2rem !important;
+}
+
+/* ── SURGICAL CLEAN UI (Hides Popups & Arrows) ── */
+#MainMenu { visibility: hidden !important; display: none !important; }
+.stDeployButton { display: none !important; }
+footer { visibility: hidden !important; display: none !important; }
+header { background: transparent !important; } 
+
+/* Hide "Press Enter to apply" */
+div[data-testid="InputInstructions"] { display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0px !important; }
+
+/* Hide up/down arrows (steppers) on number inputs */
+input[type="number"]::-webkit-inner-spin-button, 
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* Clean Uploader: Hide Cloud Icon and 200MB text */
+[data-testid="stFileUploadDropzone"] svg { display: none !important; }
+[data-testid="stFileUploadDropzone"] small { display: none !important; }
+[data-testid="stFileUploadDropzone"] { padding: 1rem !important; }
+
+/* Hide Hover Tooltips */
+div[data-baseweb="tooltip"] { display: none !important; visibility: hidden !important; opacity: 0 !important; }
+[data-testid="stTooltipHoverTarget"] { pointer-events: none !important; cursor: default !important; }
+
+/* ── Sidebar ──────────────────────────────────── */
+[data-testid="stSidebar"] {
+    background: var(--bg-panel) !important;
+    border-right: 1px solid var(--border-color) !important;
+}
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    font-family: var(--font-body) !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+    color: var(--accent) !important;
+    margin-top: 0.25rem !important;
+}
+[data-testid="stSidebar"] hr {
+    border: none !important;
+    border-top: 1px solid var(--border-color) !important;
+    margin: 1rem 0 !important;
+}
+
+/* ── Inputs (Sidebar & Main) ──────────────────── */
+[data-testid="stSidebar"] input,
+[data-testid="stSidebar"] textarea,
+[data-testid="stSidebar"] select,
+.stSelectbox > div > div,
+.stTextInput > div > div > input,
+.stNumberInput > div > div > input {
+    background: var(--bg-main) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius) !important;
+    color: var(--text-main) !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.85rem !important;
+    box-shadow: none !important;
+}
+
+[data-testid="stFileUploadDropzone"] {
+    background: var(--bg-panel) !important;
+    border: 1px dashed var(--accent-dim) !important;
+    border-radius: var(--radius) !important;
+}
+[data-testid="stFileUploadDropzone"]:hover {
+    border-color: var(--accent) !important;
+    background: var(--bg-main) !important;
+}
+
+/* ── Headings Main ────────────────────────────── */
+h1, h2, h3 { color: var(--accent) !important; font-weight: 700 !important; }
+
+/* ── Buttons ──────────────────────────────────── */
+.stButton > button {
+    background: var(--bg-panel) !important;
+    color: var(--accent) !important;
+    border: 1px solid var(--accent-dim) !important;
+    border-radius: var(--radius) !important;
+    font-family: var(--font-body) !important;
+    font-weight: 600 !important;
+    font-size: 0.8rem !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    padding: 0.5rem 1.1rem !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease !important;
+}
+.stButton > button:hover {
+    background: var(--accent) !important;
+    color: var(--bg-main) !important;
+}
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, var(--accent-dim), var(--accent)) !important;
+    color: var(--bg-main) !important;
+    border: none !important;
+}
+[data-testid="stDownloadButton"] > button {
+    background: var(--bg-panel) !important;
+    color: var(--accent) !important;
+    border: 1px solid var(--accent-dim) !important;
+}
+
+/* ── Expanders ────────────────────────────────── */
+[data-testid="stExpander"] {
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius) !important;
+    background: var(--bg-panel) !important;
+    box-shadow: none !important;
+}
+[data-testid="stExpander"] summary p {
+    color: var(--accent) !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+}
+
+/* ── DataFrames ───────────────────────────────── */
+[data-testid="stDataFrame"] {
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius) !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+}
+[data-testid="stDataFrame"] th {
+    background: var(--bg-panel) !important;
+    color: var(--accent) !important;
+    font-family: var(--font-body) !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+}
+[data-testid="stDataFrame"] td {
+    color: var(--text-main) !important;
+    background: var(--bg-main) !important;
+    font-family: var(--font-mono) !important;
+}
+
+/* ── Alerts / Info ────────────────────────────── */
+[data-testid="stAlert"] {
+    background: rgba(0, 229, 255, 0.05) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius) !important;
+    color: var(--text-main) !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # --- 2. Professional Logo & Header ---
 logo_url = "https://raw.githubusercontent.com/12solo/Tensile-test-extrapolator/main/logo%20s.png"
@@ -64,7 +244,7 @@ if not auto_scale:
 # --- 20 MAXIMUM CONTRAST COLORS (KELLY'S SET) ---
 # This set is designed so that every color is as distinct as possible from the others.
 distinct_20 = [
-    "#000000", "#FFB300", "#803E75", "#FF6800", "#A6BDD7", "#C10020", "#CEA262",
+    "#00E5FF", "#FFB300", "#803E75", "#FF6800", "#A6BDD7", "#C10020", "#CEA262",
     "#817066", "#007D34", "#F6768E", "#00538A", "#FF7A5C", "#53377A", "#FF8E00",
     "#B32851", "#F4C800", "#7F180D", "#93AA00", "#593315", "#F13A13", "#232C16"
 ]
@@ -96,9 +276,9 @@ def image_digitizer_ui():
         with c1:
             h_calc = int(img.height * (800 / img.width))
             canvas_result = st_canvas(
-                fill_color="rgba(255, 165, 0, 0.3)", 
+                fill_color="rgba(0, 229, 255, 0.3)", 
                 stroke_width=2, 
-                stroke_color="#ff0000",
+                stroke_color="#00E5FF",
                 background_image=Image.open(digitizer_file),
                 height=h_calc, 
                 width=800,
@@ -247,12 +427,12 @@ if uploaded_files:
 
                 fig_mini = go.Figure()
                 fig_mini.add_trace(go.Scatter(x=strain_plot, y=stress_plot, name="Data", line=dict(color=chosen_color)))
-                fig_mini.add_trace(go.Scatter(x=fit_x, y=fit_y, name="Modulus Fit", line=dict(dash='dot', color='#d62728')))
+                fig_mini.add_trace(go.Scatter(x=fit_x, y=fit_y, name="Modulus Fit", line=dict(dash='dot', color='#00E5FF')))
                 
                 if y_stress != "N/A":
-                    fig_mini.add_trace(go.Scatter(x=[y_strain], y=[y_stress], mode='markers', marker=dict(color='orange', size=12, symbol='circle-open-dot')))
+                    fig_mini.add_trace(go.Scatter(x=[y_strain], y=[y_stress], mode='markers', marker=dict(color='#00E5FF', size=12, symbol='circle-open-dot')))
 
-                fig_mini.update_layout(height=280, margin=dict(l=0, r=0, t=0, b=0), template="plotly_white", showlegend=False, xaxis=dict(range=[0, None]), yaxis=dict(range=[0, None]))
+                fig_mini.update_layout(height=280, margin=dict(l=0, r=0, t=0, b=0), plot_bgcolor='#1e293b', paper_bgcolor='#1e293b', showlegend=False, xaxis=dict(range=[0, None], showgrid=False, color='#f8fafc'), yaxis=dict(range=[0, None], showgrid=False, color='#f8fafc'))
                 prev_col.plotly_chart(fig_mini, use_container_width=True)
 
                 try: work_j = np.trapezoid(stress_plot * area, (strain_plot/100 * gauge_length) / 1000.0)
@@ -300,10 +480,10 @@ if uploaded_files:
             fig_main = go.Figure()
             for name, data in plot_data_storage.items():
                 fig_main.add_trace(go.Scatter(x=data[0], y=data[1], name=name, mode='lines', 
-                                             line=dict(width=line_thickness, color=sample_color_map.get(name, '#000000'))))
+                                             line=dict(width=line_thickness, color=sample_color_map.get(name, '#00E5FF'))))
             x_lim = res_df["Strain @ Peak [%]"].max() * 1.05 if auto_scale else custom_x_max
             y_lim = res_df["Stress @ Peak [MPa]"].max() * 1.1 if auto_scale else custom_y_max
-            fig_main.update_layout(template="simple_white", xaxis=dict(title="Strain (%)", range=[0, x_lim]), yaxis=dict(title="Stress (MPa)", range=[0, y_lim]), height=650)
+            fig_main.update_layout(plot_bgcolor='#0f172a', paper_bgcolor='#0f172a', font=dict(color='#f8fafc'), xaxis=dict(title="Strain (%)", range=[0, x_lim], showgrid=False, linecolor='#00E5FF'), yaxis=dict(title="Stress (MPa)", range=[0, y_lim], showgrid=False, linecolor='#00E5FF'), height=650)
             st.plotly_chart(fig_main, use_container_width=True)
         else:
             st.pyplot(fig_journal)
@@ -326,7 +506,7 @@ if uploaded_files:
             baseline = res_df[res_df["Sample"] == control_sample].iloc[0]
             for col, base in [("Modulus (E) [MPa]", "Modulus (E) [MPa]"), ("Stress @ Peak [MPa]", "Stress @ Peak [MPa]"), ("Toughness [MJ/m³]", "Toughness [MJ/m³]")]:
                 comp_df[f"{col.split()[0]} Δ (%)"] = ((pd.to_numeric(comp_df[col], errors='coerce') - float(baseline[base])) / float(baseline[base])) * 100
-            st.dataframe(comp_df.style.format("{:+.1f}%", subset=[c for c in comp_df.columns if "Δ" in c]).background_gradient(cmap="RdYlGn", subset=[c for c in comp_df.columns if "Δ" in c]), hide_index=True)
+            st.dataframe(comp_df.style.format("{:+.1f}%", subset=[c for c in comp_df.columns if "Δ" in c]).background_gradient(cmap="Blues", subset=[c for c in comp_df.columns if "Δ" in c]), hide_index=True)
 
         st.subheader(f"📊 Batch Summary Statistics (n={len(res_df)})")
         numeric_cols = ["Modulus (E) [MPa]", "Yield Stress [MPa]", "Yield Strain [%]", "Stress @ Peak [MPa]", "Strain @ Peak [%]", "Toughness [MJ/m³]"]
