@@ -240,7 +240,7 @@ def render_header():
                     font-weight:700;
                     color:#f0f4fb;
                     line-height:1.1;
-                ">Tensile Extrapolation Suite <span style="color:#c9a84c;">2.1</span></div>
+                ">Tensile Master Pro2 <span style="color:#c9a84c;">2.1</span></div>
                 <div style="
                     font-family:'IBM Plex Sans',sans-serif;
                     font-size:0.72rem;
