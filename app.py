@@ -12,8 +12,8 @@ from streamlit_drawable_canvas import st_canvas
 
 # --- 1. Page Configuration ---
 st.set_page_config(
-    page_title="Tensile Extrapolation Suite | Solomon Scientific",
-    page_icon="🔬",
+    page_title="Tensile Master Pro | Solomon Scientific",
+    page_icon="LOGO.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -240,7 +240,7 @@ def render_header():
                     font-weight:700;
                     color:#f0f4fb;
                     line-height:1.1;
-                ">Solomon Tensile Suite <span style="color:#c9a84c;">2.1</span></div>
+                ">Solomon Tensile Master Pro <span style="color:#c9a84c;">2</span></div>
                 <div style="
                     font-family:'IBM Plex Sans',sans-serif;
                     font-size:0.72rem;
@@ -260,7 +260,7 @@ def render_header():
             text-align:right;
             line-height:1.8;
         ">
-            © 2026<br>Research Use
+            © 2026<br>
         </div>
     </div>
     """, unsafe_allow_html=True)
