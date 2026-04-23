@@ -57,29 +57,22 @@ html, body, [class*="css"], .stMarkdown, .stText, .stButton, .stSelectbox, .stTa
     padding-bottom: 2rem !important;
 }
 
-/* ── SURGICAL CLEAN UI (Hides Popups & Arrows & Shadows) ── */
+/* ── SURGICAL CLEAN UI ── */
 #MainMenu { visibility: hidden !important; display: none !important; }
 .stDeployButton { display: none !important; }
 footer { visibility: hidden !important; display: none !important; }
 header { background: transparent !important; box-shadow: none !important; } 
 
-/* Hide "Press Enter to apply" */
 div[data-testid="InputInstructions"] { display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0px !important; }
 
-/* Hide up/down arrows (steppers) on number inputs */
 input[type="number"]::-webkit-inner-spin-button, 
-input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type="number"] { -moz-appearance: textfield; }
 
-/* Clean Uploader: Hide Cloud Icon and 200MB text */
 [data-testid="stFileUploadDropzone"] svg { display: none !important; }
 [data-testid="stFileUploadDropzone"] small { display: none !important; }
 [data-testid="stFileUploadDropzone"] { padding: 1rem !important; }
 
-/* Hide Hover Tooltips */
 div[data-baseweb="tooltip"] { display: none !important; visibility: hidden !important; opacity: 0 !important; }
 [data-testid="stTooltipHoverTarget"] { pointer-events: none !important; cursor: default !important; }
 
@@ -88,120 +81,47 @@ div[data-baseweb="tooltip"] { display: none !important; visibility: hidden !impo
     background: var(--bg-offwhite) !important;
     border-right: 1px solid var(--border) !important;
 }
-[data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3 {
-    font-family: var(--font-body) !important;
-    font-size: 0.75rem !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.15em !important;
-    text-transform: uppercase !important;
-    color: var(--dark-blue) !important;
-    margin-top: 0.25rem !important;
+[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+    font-family: var(--font-body) !important; font-size: 0.75rem !important;
+    font-weight: 700 !important; letter-spacing: 0.15em !important;
+    text-transform: uppercase !important; color: var(--dark-blue) !important; margin-top: 0.25rem !important;
 }
-[data-testid="stSidebar"] hr {
-    border: none !important;
-    border-top: 1px solid var(--border) !important;
-    margin: 1rem 0 !important;
+[data-testid="stSidebar"] hr { border: none !important; border-top: 1px solid var(--border) !important; margin: 1rem 0 !important; }
+
+/* ── Inputs ──────────────────── */
+[data-testid="stSidebar"] input, [data-testid="stSidebar"] textarea, [data-testid="stSidebar"] select,
+.stSelectbox > div > div, .stTextInput > div > div > input, .stNumberInput > div > div > input {
+    background: var(--bg-white) !important; border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important; color: var(--text-dark) !important;
+    font-family: var(--font-mono) !important; font-size: 0.85rem !important; box-shadow: none !important;
 }
 
-/* ── Inputs (Sidebar & Main) ──────────────────── */
-[data-testid="stSidebar"] input,
-[data-testid="stSidebar"] textarea,
-[data-testid="stSidebar"] select,
-.stSelectbox > div > div,
-.stTextInput > div > div > input,
-.stNumberInput > div > div > input {
-    background: var(--bg-white) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    color: var(--text-dark) !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.85rem !important;
-    box-shadow: none !important;
-}
-
-[data-testid="stFileUploadDropzone"] {
-    background: var(--bg-offwhite) !important;
-    border: 1px dashed var(--border) !important;
-    border-radius: var(--radius) !important;
-}
-[data-testid="stFileUploadDropzone"]:hover {
-    border-color: var(--gold) !important;
-}
-
-/* ── Headings Main ────────────────────────────── */
+[data-testid="stFileUploadDropzone"] { background: var(--bg-offwhite) !important; border: 1px dashed var(--border) !important; border-radius: var(--radius) !important; }
+[data-testid="stFileUploadDropzone"]:hover { border-color: var(--gold) !important; }
 h1, h2, h3 { color: var(--dark-blue) !important; font-weight: 700 !important; }
 
 /* ── Buttons ──────────────────────────────────── */
 .stButton > button {
-    background: var(--bg-offwhite) !important;
-    color: var(--dark-blue) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    font-family: var(--font-body) !important;
-    font-weight: 600 !important;
-    font-size: 0.8rem !important;
-    letter-spacing: 0.05em !important;
-    text-transform: uppercase !important;
-    padding: 0.5rem 1.1rem !important;
-    box-shadow: none !important;
-    transition: all 0.2s ease !important;
+    background: var(--bg-offwhite) !important; color: var(--dark-blue) !important; border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important; font-family: var(--font-body) !important; font-weight: 600 !important;
+    font-size: 0.8rem !important; letter-spacing: 0.05em !important; text-transform: uppercase !important;
+    padding: 0.5rem 1.1rem !important; box-shadow: none !important; transition: all 0.2s ease !important;
 }
-.stButton > button:hover {
-    background: var(--border) !important;
-}
-.stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, var(--gold-dim), var(--gold)) !important;
-    color: var(--navy) !important;
-    border: none !important;
-}
-[data-testid="stDownloadButton"] > button {
-    background: var(--bg-offwhite) !important;
-    color: var(--dark-blue) !important;
-    border: 1px solid var(--border) !important;
-}
+.stButton > button:hover { background: var(--border) !important; }
+.stButton > button[kind="primary"] { background: linear-gradient(135deg, var(--gold-dim), var(--gold)) !important; color: var(--navy) !important; border: none !important; }
+[data-testid="stDownloadButton"] > button { background: var(--bg-offwhite) !important; color: var(--dark-blue) !important; border: 1px solid var(--border) !important; }
 
 /* ── Expanders ────────────────────────────────── */
-[data-testid="stExpander"] {
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    background: var(--bg-white) !important;
-    box-shadow: none !important;
-}
-[data-testid="stExpander"] summary p {
-    color: var(--dark-blue) !important;
-    font-weight: 700 !important;
-    font-size: 0.85rem !important;
-}
+[data-testid="stExpander"] { border: 1px solid var(--border) !important; border-radius: var(--radius) !important; background: var(--bg-white) !important; box-shadow: none !important; }
+[data-testid="stExpander"] summary p { color: var(--dark-blue) !important; font-weight: 700 !important; font-size: 0.85rem !important; }
 
 /* ── DataFrames ───────────────────────────────── */
-[data-testid="stDataFrame"] {
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    overflow: hidden !important;
-    box-shadow: none !important;
-}
-[data-testid="stDataFrame"] th {
-    background: var(--bg-offwhite) !important;
-    color: var(--dark-blue) !important;
-    font-family: var(--font-body) !important;
-    font-weight: 700 !important;
-    text-transform: uppercase !important;
-}
-[data-testid="stDataFrame"] td {
-    color: var(--text-dark) !important;
-    background: var(--bg-white) !important;
-    font-family: var(--font-mono) !important;
-}
+[data-testid="stDataFrame"] { border: 1px solid var(--border) !important; border-radius: var(--radius) !important; overflow: hidden !important; box-shadow: none !important; }
+[data-testid="stDataFrame"] th { background: var(--bg-offwhite) !important; color: var(--dark-blue) !important; font-family: var(--font-body) !important; font-weight: 700 !important; text-transform: uppercase !important; }
+[data-testid="stDataFrame"] td { color: var(--text-dark) !important; background: var(--bg-white) !important; font-family: var(--font-mono) !important; }
 
-/* ── Alerts / Info ────────────────────────────── */
-[data-testid="stAlert"] {
-    background: rgba(201, 168, 76, 0.1) !important;
-    border: 1px solid rgba(201, 168, 76, 0.3) !important;
-    border-radius: var(--radius) !important;
-    color: var(--text-dark) !important;
-}
+/* ── Alerts ────────────────────────────── */
+[data-testid="stAlert"] { background: rgba(201, 168, 76, 0.1) !important; border: 1px solid rgba(201, 168, 76, 0.3) !important; border-radius: var(--radius) !important; color: var(--text-dark) !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -223,45 +143,8 @@ def render_header():
         icon_html = '<div style="width: 54px; height: 54px; background: linear-gradient(135deg, #9c7a32, #c9a84c); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; flex-shrink: 0;">🔬</div>'
 
     st.markdown(f"""
-    <div style="
-        display:flex; align-items:center; justify-content:space-between;
-        padding: 1.5rem 2rem;
-        background: #003366;
-        border-radius: 4px;
-        margin-bottom: 1.5rem;
-        margin-top: 0.5rem;
-    ">
-        <div style="display:flex;align-items:center;gap:1.5rem;">
-            {icon_html}
-            <div>
-                <div style="
-                    font-family:'Playfair Display',Georgia,serif;
-                    font-size:1.75rem;
-                    font-weight:700;
-                    color:#f0f4fb;
-                    line-height:1.1;
-                ">Solomon Tensile Master Pro <span style="color:#c9a84c;">2</span></div>
-                <div style="
-                    font-family:'IBM Plex Sans',sans-serif;
-                    font-size:0.72rem;
-                    color:#a8b4c8;
-                    letter-spacing:0.2em;
-                    text-transform:uppercase;
-                    margin-top:4px;
-                ">Analytical Framework for Bio-Composite Strain Behavior &nbsp;·&nbsp; Solomon Scientific</div>
-            </div>
-        </div>
-        <div style="
-            font-family:'IBM Plex Sans',sans-serif;
-            font-size:0.65rem;
-            color:#cbd5e1;
-            letter-spacing:0.12em;
-            text-transform:uppercase;
-            text-align:right;
-            line-height:1.8;
-        ">
-            © 2026<br>
-        </div>
+    <div style="display:flex; align-items:center; justify-content:space-between; padding: 1.5rem 2rem; background: #003366; border-radius: 4px; margin-bottom: 1.5rem; margin-top: 0.5rem;">
+        <div style="display:flex;align-items:center;gap:1.5rem;">{icon_html}<div><div style="font-family:'Playfair Display',Georgia,serif; font-size:1.75rem; font-weight:700; color:#f0f4fb; line-height:1.1;">Solomon Tensile Master Pro <span style="color:#c9a84c;">2</span></div><div style="font-family:'IBM Plex Sans',sans-serif; font-size:0.72rem; color:#a8b4c8; letter-spacing:0.2em; text-transform:uppercase; margin-top:4px;">Analytical Framework for Bio-Composite Strain Behavior &nbsp;·&nbsp; Solomon Scientific</div></div></div><div style="font-family:'IBM Plex Sans',sans-serif; font-size:0.65rem; color:#cbd5e1; letter-spacing:0.12em; text-transform:uppercase; text-align:right; line-height:1.8;">© 2026<br></div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -274,20 +157,7 @@ def render_sidebar_brand():
         icon_html = '<div style="width:52px;height:52px;margin:0 auto 0.75rem auto;background:linear-gradient(135deg,#9c7a32,#c9a84c);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;">🔬</div>'
 
     st.markdown(f"""
-    <div style="padding:1.25rem 0 0.5rem 0;text-align:center;">
-        {icon_html}
-        <div style="font-family:'IBM Plex Sans',sans-serif;font-size:0.65rem;color:#9c7a32;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:4px;font-weight:700;">Solomon Scientific</div>
-        <div style="font-family:'Playfair Display',Georgia,serif;font-size:1.1rem;font-weight:700;color:#003366;line-height:1.2;">
-            Suite Pro <span style="color:#c9a84c;">2.1</span>
-        </div>
-        <div style="
-            margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #e2e8f0;
-            font-family:'IBM Plex Sans',sans-serif;font-size:0.68rem;color:#64748b;line-height:1.5;
-        ">
-            Advanced Modeling Tools &nbsp;<br>
-            <a href='mailto:your.solomon.duf@gmail.com' style='color:#9c7a32;text-decoration:none;font-weight:500;'>✉ Contact Developer</a>
-        </div>
-    </div>
+    <div style="padding:1.25rem 0 0.5rem 0;text-align:center;">{icon_html}<div style="font-family:'IBM Plex Sans',sans-serif;font-size:0.65rem;color:#9c7a32;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:4px;font-weight:700;">Solomon Scientific</div><div style="font-family:'Playfair Display',Georgia,serif;font-size:1.1rem;font-weight:700;color:#003366;line-height:1.2;">Suite Pro <span style="color:#c9a84c;">2.1</span></div><div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #e2e8f0; font-family:'IBM Plex Sans',sans-serif;font-size:0.68rem;color:#64748b;line-height:1.5;">Advanced Modeling Tools &nbsp;<br><a href='mailto:your.solomon.duf@gmail.com' style='color:#9c7a32;text-decoration:none;font-weight:500;'>✉ Contact Developer</a></div></div>
     """, unsafe_allow_html=True)
 
 render_header()
@@ -525,8 +395,7 @@ if uploaded_files:
                     "Toughness [MJ/m³]": round((work_j / (area * gauge_length * 1e-9)) / 1e6, 3)
                 })
 
-                # --- 1. HORIZONTAL CONCATENATION PREPARATION ---
-                # CRITICAL: .reset_index(drop=True) prevents alignment errors during pd.concat(axis=1)
+                # --- 1. BULLETPROOF HORIZONTAL CONCATENATION ---
                 raw_df = pd.DataFrame({
                     f"{custom_name}_Load [N]": stress_plot * area,
                     f"{custom_name}_Deformation [mm]": (strain_plot / 100) * gauge_length,
@@ -601,11 +470,11 @@ if uploaded_files:
         stats_df = res_df[numeric_cols].apply(pd.to_numeric, errors='coerce').agg(['mean', 'std']).T
         st.table(stats_df.style.format("{:.2f}"))
 
-        # --- 2. REPRESENTATIVE SAMPLE ALGORITHM ---
+        # --- 2. CRASH-PROOF REPRESENTATIVE ALGORITHM ---
         rep_sample_name = None
         if len(res_df) > 0:
-            # Calculate Euclidean distance from batch mean for numerical features
-            temp_num_df = res_df[numeric_cols].apply(pd.to_numeric, errors='coerce')
+            # fillna(0) ensures "N/A" strings don't crash the calculation 
+            temp_num_df = res_df[numeric_cols].apply(pd.to_numeric, errors='coerce').fillna(0)
             means = temp_num_df.mean()
             safe_means = means.replace(0, 1) # Prevent div/0 
             distances = ((temp_num_df - means) / safe_means).pow(2).sum(axis=1)
@@ -679,61 +548,61 @@ if uploaded_files:
         )
         st.text_area("", methods_text, height=180)
 
-        excel_out = io.BytesIO()
-        with pd.ExcelWriter(excel_out, engine='xlsxwriter') as writer:
-            res_df.to_excel(writer, sheet_name='Individual_Results', index=False)
-            stats_df.to_excel(writer, sheet_name='Batch_Statistics')
-            
-            if 'comp_df' in locals():
-                comp_df.to_excel(writer, sheet_name='Comparative_Analysis', index=False)
-
-            # --- 3. HORIZONTAL CONCATENATION & REPRESENTATIVE EXTRACTION ---
-            master_raw_df = None
-            rep_raw_df = None
-            
-            if master_raw_data_list:
-                # Concatenate horizontally side-by-side using axis=1
-                master_raw_df = pd.concat(master_raw_data_list, axis=1)
-                master_raw_df.to_excel(writer, sheet_name='Raw_Data_All', index=False)
+        # --- 3. EXCEL EXPORT WITH ERROR CATCHER ---
+        try:
+            excel_out = io.BytesIO()
+            with pd.ExcelWriter(excel_out, engine='xlsxwriter') as writer:
+                res_df.to_excel(writer, sheet_name='Individual_Results', index=False)
+                stats_df.to_excel(writer, sheet_name='Batch_Statistics')
                 
-                # Extract Representative sample into separate sheet
-                if rep_sample_name:
-                    rep_cols = [c for c in master_raw_df.columns if str(c).startswith(f"{rep_sample_name}_")]
-                    if rep_cols:
-                        rep_raw_df = master_raw_df[rep_cols].dropna(how='all')
-                        # Rename columns to look clean (strip sample name prefix)
-                        rep_raw_df.columns = [str(c).replace(f"{rep_sample_name}_", "") for c in rep_cols]
-                        rep_raw_df.to_excel(writer, sheet_name='Representative_Data', index=False)
+                if 'comp_df' in locals():
+                    comp_df.to_excel(writer, sheet_name='Comparative_Analysis', index=False)
 
-            # --- 4. COLUMN AUTOFITTING LOGIC ---
-            sheet_refs = [
-                ('Individual_Results', res_df), 
-                ('Batch_Statistics', stats_df.reset_index()), 
-                ('Comparative_Analysis', comp_df if 'comp_df' in locals() else None),
-                ('Raw_Data_All', master_raw_df),
-                ('Representative_Data', rep_raw_df)
-            ]
-            
-            for sheetname, df_ref in sheet_refs:
-                if df_ref is not None and sheetname in writer.sheets:
-                    worksheet = writer.sheets[sheetname]
-                    for i, col in enumerate(df_ref.columns):
-                        # Find the max length of the column header vs the string contents of the data
-                        column_len = max(df_ref[col].astype(str).map(len).max(), len(str(col))) + 2
-                        worksheet.set_column(i, i, column_len)
-            
-            plot_sheet = writer.book.add_worksheet('Final_Visual_Report')
-            plot_sheet.write('A1', f'Project: {project_name}')
-            plot_sheet.write('A2', 'Note: This image is exported at 600 DPI for publication quality.')
-            
-            img_excel = io.BytesIO()
-            fig_journal.savefig(img_excel, format='png', dpi=300, bbox_inches='tight') 
-            img_excel.seek(0)
-            plot_sheet.insert_image('A4', 'final_plot.png', {'image_data': img_excel, 'x_scale': 0.8, 'y_scale': 0.8})
+                master_raw_df = None
+                rep_raw_df = None
+                
+                if master_raw_data_list:
+                    master_raw_df = pd.concat(master_raw_data_list, axis=1)
+                    master_raw_df.to_excel(writer, sheet_name='Raw_Data_All', index=False)
+                    
+                    if rep_sample_name:
+                        rep_cols = [c for c in master_raw_df.columns if str(c).startswith(f"{rep_sample_name}_")]
+                        if rep_cols:
+                            rep_raw_df = master_raw_df[rep_cols].dropna(how='all')
+                            rep_raw_df.columns = [str(c).replace(f"{rep_sample_name}_", "") for c in rep_cols]
+                            rep_raw_df.to_excel(writer, sheet_name='Representative_Data', index=False)
 
-        st.download_button(
-            label="📥 Download Full Research Report (Excel + Plot)",
-            data=excel_out.getvalue(),
-            file_name=f"{project_name}_Full_Analysis.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+                # Column Autofitting
+                sheet_refs = [
+                    ('Individual_Results', res_df), 
+                    ('Batch_Statistics', stats_df.reset_index()), 
+                    ('Comparative_Analysis', comp_df if 'comp_df' in locals() else None),
+                    ('Raw_Data_All', master_raw_df),
+                    ('Representative_Data', rep_raw_df)
+                ]
+                
+                for sheetname, df_ref in sheet_refs:
+                    if df_ref is not None and sheetname in writer.sheets:
+                        worksheet = writer.sheets[sheetname]
+                        for i, col in enumerate(df_ref.columns):
+                            column_len = max(df_ref[col].astype(str).map(len).max(), len(str(col))) + 2
+                            worksheet.set_column(i, i, column_len)
+                
+                plot_sheet = writer.book.add_worksheet('Final_Visual_Report')
+                plot_sheet.write('A1', f'Project: {project_name}')
+                plot_sheet.write('A2', 'Note: This image is exported at 600 DPI for publication quality.')
+                
+                img_excel = io.BytesIO()
+                fig_journal.savefig(img_excel, format='png', dpi=300, bbox_inches='tight') 
+                img_excel.seek(0)
+                plot_sheet.insert_image('A4', 'final_plot.png', {'image_data': img_excel, 'x_scale': 0.8, 'y_scale': 0.8})
+
+            st.download_button(
+                label="📥 Download Full Research Report (Excel + Plot)",
+                data=excel_out.getvalue(),
+                file_name=f"{project_name}_Full_Analysis.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        except Exception as e:
+            st.error(f"Failed to generate Excel report. Developer Error: {e}")
+            st.info("💡 **Troubleshooting:** If the error says `No module named 'xlsxwriter'`, please run `pip install xlsxwriter` in your terminal and restart the app.")
