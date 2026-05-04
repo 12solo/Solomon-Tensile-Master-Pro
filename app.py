@@ -891,21 +891,30 @@ if page == "🔬  Tensile Analysis":
             if df_raw is None or df_raw.empty: continue
             cols = df_raw.columns.tolist()
             
-            # Smarter guessing for Force/Stress (Y-axis)
-            force_kws = ['stress', 'sforzo', 'mpa', 'sigma', 'force', 'load', 'n', 'lbf', 'kgf']
-            inst_stress = next((c for c in cols if any(k in c.lower() for k in force_kws)), None)
-            def_f = inst_stress or (cols[1] if len(cols)>1 else cols[0])
+            # 1. Aggressive Y-Axis Detection (Force/Stress)
+            force_kws = ['stress', 'sforzo', 'mpa', 'sigma', 'force', 'load', 'n', 'lbf', 'kgf', 'str']
+            def_f = next((c for c in cols if any(k in c.lower() for k in force_kws)), None)
             
-            # Smarter guessing for Displacement/Strain (X-axis)
-            disp_kws = ['strain', 'disp', 'ext', 'mm', 'elongation', '%', 'pos', 'deformation']
-            inst_disp = next((c for c in cols if any(k in c.lower() for k in disp_kws)), None)
+            # 2. Aggressive X-Axis Detection (Strain/Displacement)
+            disp_kws = ['strain', 'disp', 'ext', 'mm', 'elongation', '%', 'pos', 'deformation', 'def']
+            def_d = next((c for c in cols if any(k in c.lower() for k in disp_kws)), None)
             
+            # 3. Bulletproof Fallbacks (Actively avoid 'Time' or 'Sec')
+            if not def_f or not def_d:
+                non_time_cols = [c for c in cols if 'time' not in c.lower() and 'sec' not in c.lower()]
+                
+                # If it couldn't find Force, guess the last column
+                if not def_f:
+                    def_f = non_time_cols[-1] if len(non_time_cols) > 0 else cols[-1]
+                
+                # If it couldn't find Displacement, guess the first non-time column
+                if not def_d:
+                    def_d = non_time_cols[0] if len(non_time_cols) > 0 else cols[0]
+
+            # Override for Image Digitizer
             if "Digitized Strain" in cols:
                 def_d = "Digitized Strain"
-            else:
-                # Default to the guessed displacement column, or safely fallback to the first column 
-                # (but explicitly avoid picking 'Time' if displacement was found)
-                def_d = inst_disp or cols[0]
+                def_f = "Digitized Stress"
 
             with st.expander(f"📄 {clean_label(file.name)}", expanded=False):
                 r1 = st.columns([2,2,2,1])
@@ -934,7 +943,7 @@ if page == "🔬  Tensile Analysis":
                     stress_raw_arr = df_c[f_col].values; strain_raw_arr = df_c[d_col].values
                 else:
                     disp_mm = df_c[d_col].values * u_scale
-                    is_stress = inst_stress and f_col==inst_stress
+                    is_stress = def_f and f_col==def_f and any(k in f_col.lower() for k in ['stress','mpa','sigma','sforzo'])
                     stress_raw_arr = df_c[f_col].values if is_stress else df_c[f_col].values/area
                     strain_raw_arr = (disp_mm/gauge_length)*100.0
                 if smooth_win > 1:
