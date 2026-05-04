@@ -971,16 +971,17 @@ if page == "🔬  Tensile Analysis":
                 except AttributeError: work_j=float(np.trapz(r["stress"]*area,(r["strain"]/100.0)*gauge_length/1000.0))
 
                 plot_data[custom_name] = r
-                all_results.append({
+               all_results.append({
                     "Sample": custom_name, "File": file.name, "Class": r["mat_class"],
                     "Modulus [MPa]": r["E_MPa"], "Yield Stress [MPa]": r["y_stress"],
                     "Yield Strain [%]": r["y_strain"], "UTS [MPa]": r["uts"],
                     "Stress at Break [MPa]": r["stress_break"],
                     "Elongation at Break [%]": r["strain_break"],
+                    "Work Done [J]": round(work_j,5),
                     "Toughness [MJ/m³]": r["toughness"], "Resilience [MJ/m³]": r["resilience"],
                     "Ductility Index": r["ductility_idx"],
                     "Hollomon n": r["h_n"], "Hollomon K [MPa]": r["h_K"],
-                    "Hollomon R²": r["h_r2"], "Work Done [J]": round(work_j,5),
+                    "Hollomon R²": r["h_r2"], 
                 })
 
         if not all_results:
@@ -2110,68 +2111,79 @@ else:
         section_hdr("Comprehensive Ageing Report Export","💾","#002244")
         exc1, exc2 = st.columns(2)
 
-        with exc1:
-            st.markdown("**📊 Full Ageing Excel Report**")
-            st.caption("Sheets: Raw Data · Retention Matrix · Kinetics · DSI · Methods")
-            ag_xl = io.BytesIO()
-            try:
-                with pd.ExcelWriter(ag_xl, engine='xlsxwriter') as w:
-                    wb_xl = w.book
-                    hdr_fmt = wb_xl.add_format({'bold':True,'bg_color':'#002244',
-                        'font_color':'#f0f4fb','border':1,'align':'center'})
-                    # Raw data
-                    ag_df.to_excel(w, sheet_name='Raw_Ageing_Data', index=False)
-                    ws0=w.sheets['Raw_Ageing_Data']
-                    # FIXED: Explicitly cast column names to string
-                    for i,col in enumerate(ag_df.columns): ws0.write(0,i,str(col),hdr_fmt)
+       try:
+                    with pd.ExcelWriter(xl_buf,engine='xlsxwriter') as w:
+                        res_df.to_excel(w,sheet_name='Results',index=False)
+                        stats_df.to_excel(w,sheet_name='Batch_Statistics')
+                        
+                        # 1. Raw Curves
+                        raw_fs=[]
+                        for name,r in plot_data.items():
+                            raw_fs.append(pd.DataFrame({
+                                f"{name}_Strain(%)":r["strain"],f"{name}_Stress(MPa)":r["stress"],
+                                f"{name}_TrueStrain":r["true_strain"],f"{name}_TrueStress(MPa)":r["true_stress"]}))
+                        if raw_fs: pd.concat(raw_fs,axis=1).to_excel(w,sheet_name='Raw_Curves',index=False)
+                        
+                        # 2. Hollomon
+                        hrows2=[{"Sample":rr["Sample"],"n":rr["Hollomon n"],"K(MPa)":rr["Hollomon K [MPa]"],"R²":rr["Hollomon R²"]} for rr in all_results]
+                        pd.DataFrame(hrows2).to_excel(w,sheet_name='Hollomon',index=False)
+                        
+                        # 3. Additional Plot Data
+                        if 'sec_rows' in locals():
+                            pd.DataFrame(sec_rows).to_excel(w, sheet_name='Secant_Data', index=False)
+                        if 'wb_data' in locals() and wb_data:
+                            pd.DataFrame({"ln(UTS)": wb_data["x"], "ln(ln(1/(1-Pf)))": wb_data["y"]}).to_excel(w, sheet_name='Weibull_Data', index=False)
+                        if 'mean_curve' in locals() and mean_curve:
+                            pd.DataFrame({"Strain(%)": mean_curve["strain"], "Mean_Stress(MPa)": mean_curve["mean"], 
+                                          "Upper_SD": mean_curve["upper"], "Lower_SD": mean_curve["lower"]}).to_excel(w, sheet_name='Mean_Curve_Data', index=False)
 
-                    # Retention matrix per property
-                    for prop_k in avail_props:
-                        ret_mat = []
-                        for form in formulations:
-                            for cond in conditions:
-                                days_,ret_=get_retention(ag_df,form,cond,prop_k)
-                                row_r={"Formulation":form,"Condition":cond}
-                                for d,r in zip(days_,ret_): row_r[f"Day {int(d)}"]=round(r,1) if not np.isnan(r) else ""
-                                auc=compute_auc_retention([d for d,r in zip(days_,ret_) if not np.isnan(r)],
-                                                          [r for r in ret_ if not np.isnan(r)])
-                                row_r["AUC_Score"]=auc
-                                ret_mat.append(row_r)
-                        sname = f"Ret_{AGEING_PROP_LABELS[prop_k][:12].replace(' ','_')}"
-                        if ret_mat: pd.DataFrame(ret_mat).to_excel(w,sheet_name=sname,index=False)
+                        # 4. Insert Journal Plot
+                        ps=w.book.add_worksheet('Plot_Journal')
+                        ps.write('A1','Solomon Tensile Master Pro 4.0')
+                        ie=io.BytesIO(); journal_fig.savefig(ie,format='png',dpi=300,bbox_inches='tight'); ie.seek(0)
+                        ps.insert_image('A3','p.png',{'image_data':ie})
+                        
+                        # 5. Insert Static Versions of Interactive Plots
+                        plt.rcParams.update({"font.family":"serif","font.size":10})
+                        
+                        # True Stress-Strain Image
+                        fig_t_exp, ax_t = plt.subplots(figsize=(7,5))
+                        for name, r in plot_data.items():
+                            ax_t.plot(r["true_strain"]*100, r["true_stress"], label=name, color=sample_colors.get(name,"#000"))
+                        ax_t.set_xlabel("True Strain (%)"); ax_t.set_ylabel("True Stress (MPa)"); ax_t.legend()
+                        fig_t_exp.tight_layout()
+                        buf_t = io.BytesIO(); fig_t_exp.savefig(buf_t, format='png', dpi=150); buf_t.seek(0)
+                        w.book.add_worksheet('Plot_TrueSS').insert_image('A1', 't.png', {'image_data': buf_t})
+                        plt.close(fig_t_exp)
+                        
+                        # Mean Curve Image
+                        if 'mean_curve' in locals() and mean_curve:
+                            fig_m_exp, ax_m = plt.subplots(figsize=(7,5))
+                            ax_m.fill_between(mean_curve["strain"], mean_curve["lower"], mean_curve["upper"], alpha=0.2, color='#555')
+                            for name, r in plot_data.items(): ax_m.plot(r["strain"], r["stress"], lw=1, alpha=0.4, color=sample_colors.get(name,"#aaa"))
+                            ax_m.plot(mean_curve["strain"], mean_curve["mean"], 'k--', lw=2, label="Mean")
+                            ax_m.set_xlabel("Strain (%)"); ax_m.set_ylabel("Stress (MPa)"); ax_m.legend()
+                            fig_m_exp.tight_layout()
+                            buf_m = io.BytesIO(); fig_m_exp.savefig(buf_m, format='png', dpi=150); buf_m.seek(0)
+                            w.book.add_worksheet('Plot_MeanCurve').insert_image('A1', 'm.png', {'image_data': buf_m})
+                            plt.close(fig_m_exp)
+                            
+                        # Weibull Image
+                        if 'wb_data' in locals() and wb_data:
+                            fig_w_exp, ax_w = plt.subplots(figsize=(7,5))
+                            ax_w.plot(wb_data["x"], wb_data["y"], 'o', color='#002244', ms=8)
+                            ax_w.plot(wb_data["fx"], wb_data["fy"], '-', color='#c9a84c', lw=2, label=f"m={wb_data['m']}")
+                            ax_w.set_xlabel("ln(UTS)"); ax_w.set_ylabel("ln(ln(1/(1-Pf)))"); ax_w.legend()
+                            fig_w_exp.tight_layout()
+                            buf_w = io.BytesIO(); fig_w_exp.savefig(buf_w, format='png', dpi=150); buf_w.seek(0)
+                            w.book.add_worksheet('Plot_Weibull').insert_image('A1', 'w.png', {'image_data': buf_w})
+                            plt.close(fig_w_exp)
 
-                    # Kinetics
-                    kin_all=[]
-                    for prop_k in avail_props:
-                        for form in formulations:
-                            for cond in conditions:
-                                days_,ret_=get_retention(ag_df,form,cond,prop_k)
-                                valid=[(d,r) for d,r in zip(days_,ret_) if not np.isnan(r)]
-                                if len(valid)<3: continue
-                                fits=fit_degradation_models([v[0] for v in valid],[v[1] for v in valid])
-                                if not fits: continue
-                                for mname,mres in fits.items():
-                                    r={"Property":AGEING_PROP_LABELS[prop_k],"Formulation":form,
-                                       "Condition":cond,"Model":mname,"R²":mres["r2"],
-                                       "Equation":mres["eq"]}
-                                    r.update(mres["params"])
-                                    sl_fn=mres.get("service_life_fn")
-                                    r[f"Service_Life@{ag_failure_thresh}%"]=round(sl_fn(ag_failure_thresh),1) if sl_fn and np.isfinite(sl_fn(ag_failure_thresh)) else ">365"
-                                    kin_all.append(r)
-                    if kin_all: pd.DataFrame(kin_all).to_excel(w,sheet_name='Kinetics',index=False)
-
-                    # DSI
-                    dsi_all=[{"Formulation":f,"Condition":c,"DSI (%)":compute_dsi(ag_df,f,c)}
-                             for f in formulations for c in conditions]
-                    pd.DataFrame(dsi_all).to_excel(w,sheet_name='DSI',index=False)
-
-                st.download_button("📥 Download Ageing Report",ag_xl.getvalue(),
-                    f"Ageing_Report_{project_name if 'project_name' in dir() else 'Study'}.xlsx",
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True)
-            except Exception as e:
-                st.error(f"Export error: {e}")
-
+                    st.download_button("📥 Download Excel Report",xl_buf.getvalue(),
+                        "Tensile_Report_v4.xlsx",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True)
+                except Exception as e: st.error(f"Export error: {e}")
         with exc2:
             st.markdown("**📝 Auto-Generated Methods Paragraph**")
             conditions_str = " and ".join(conditions)
