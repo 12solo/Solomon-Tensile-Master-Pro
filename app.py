@@ -630,9 +630,12 @@ def template_to_excel():
             'border':1,'align':'center','text_wrap':True,'valign':'vcenter'
         })
         for i, col in enumerate(df.columns):
-            cw = max(len(col), df[col].astype(str).str.len().max()) + 3
+            # FIXED: Safely handle empty df max() calls and force col names to string
+            max_val_len = df[col].astype(str).str.len().max()
+            max_val_len = 0 if pd.isna(max_val_len) else max_val_len
+            cw = max(len(str(col)), max_val_len) + 3
             ws.set_column(i, i, cw)
-            ws.write(0, i, col, hdr_fmt)
+            ws.write(0, i, str(col), hdr_fmt) # Output strictly as string
         ws.freeze_panes(1, 4)
         notes_ws = wb.add_worksheet('Instructions')
         instructions = [
@@ -669,7 +672,8 @@ def load_ageing_data(file):
             df = pd.read_excel(file, engine='openpyxl')
         else:
             df = pd.read_csv(file)
-        df.columns = [c.strip() for c in df.columns]
+        # FIXED: Cast column names to strings before using strip()
+        df.columns = [str(c).strip() for c in df.columns]
         required = ["Formulation","Condition","Days"]
         missing = [c for c in required if c not in df.columns]
         if missing:
@@ -1535,7 +1539,7 @@ else:
         kin_prop  = st.selectbox("Property for Kinetics", avail_props,
             format_func=lambda k: f"{AGEING_PROP_LABELS[k]} ({AGEING_PROP_UNITS[k]})",key="kp")
         kin_forms = st.multiselect("Formulations", formulations, default=formulations[:1], key="kf")
-        kin_conds = st.multiselect("Conditions",   conditions,   default=conditions,      key="kc")
+        kin_conds = st.multiselect("Conditions",   conditions,   default=conditions,       key="kc")
 
         t_ext2 = np.linspace(0, max(avail_days)*1.6, 200)
         model_colors = {"Linear":"#002244","First-order":"#c9a84c","Power-law":"#1e8449","Two-phase Exp.":"#7d3c98"}
@@ -2094,7 +2098,8 @@ else:
                     # Raw data
                     ag_df.to_excel(w, sheet_name='Raw_Ageing_Data', index=False)
                     ws0=w.sheets['Raw_Ageing_Data']
-                    for i,col in enumerate(ag_df.columns): ws0.write(0,i,col,hdr_fmt)
+                    # FIXED: Explicitly cast column names to string
+                    for i,col in enumerate(ag_df.columns): ws0.write(0,i,str(col),hdr_fmt)
 
                     # Retention matrix per property
                     for prop_k in avail_props:
