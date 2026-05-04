@@ -93,6 +93,17 @@ input[type="number"] { -moz-appearance:textfield; }
 }
 [data-testid="stFileUploadDropzone"] { background:var(--white) !important; border:1.5px dashed var(--border) !important; border-radius:3px !important; }
 [data-testid="stFileUploadDropzone"]:hover { border-color:var(--gold) !important; }
+/* ── Dropdown Visibility Fix ── */
+div[data-baseweb="popover"] > div, ul[data-baseweb="menu"] {
+    background-color: var(--white) !important;
+}
+ul[data-baseweb="menu"] li {
+    color: var(--text) !important;
+    background-color: transparent !important;
+}
+ul[data-baseweb="menu"] li:hover {
+    background-color: var(--off) !important;
+}
 
 /* ── Buttons ── */
 .stButton>button {
