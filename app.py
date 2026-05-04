@@ -878,9 +878,22 @@ if page == "🔬  Tensile Analysis":
             df_raw = smart_load(file)
             if df_raw is None or df_raw.empty: continue
             cols = df_raw.columns.tolist()
-            inst_stress = next((c for c in cols if any(k in c.lower() for k in ['stress','sforzo','mpa','sigma'])),None)
+            
+            # Smarter guessing for Force/Stress (Y-axis)
+            force_kws = ['stress', 'sforzo', 'mpa', 'sigma', 'force', 'load', 'n', 'lbf', 'kgf']
+            inst_stress = next((c for c in cols if any(k in c.lower() for k in force_kws)), None)
             def_f = inst_stress or (cols[1] if len(cols)>1 else cols[0])
-            def_d = "Digitized Strain" if "Digitized Strain" in cols else cols[0]
+            
+            # Smarter guessing for Displacement/Strain (X-axis)
+            disp_kws = ['strain', 'disp', 'ext', 'mm', 'elongation', '%', 'pos']
+            inst_disp = next((c for c in cols if any(k in c.lower() for k in disp_kws)), None)
+            
+            if "Digitized Strain" in cols:
+                def_d = "Digitized Strain"
+            else:
+                # Default to the guessed displacement column, or safely fallback to the first column 
+                # (but explicitly avoid picking 'Time' if displacement was found)
+                def_d = inst_disp or cols[0]
 
             with st.expander(f"📄 {clean_label(file.name)}", expanded=False):
                 r1 = st.columns([2,2,2,1])
